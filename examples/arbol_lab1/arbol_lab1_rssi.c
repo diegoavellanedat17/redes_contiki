@@ -46,20 +46,41 @@
 #include "dev/leds.h"
 
 #include <stdio.h>
+
 /*---------------------------------------------------------------------------*/
-PROCESS(example_broadcast_process, "Broadcast example");
-AUTOSTART_PROCESSES(&example_broadcast_process);
+//Estructura de Beacon
+struct beacon{
+  // el id correspondiente al nodo actual
+  
+  linkaddr_t id;
+  signed int rssi_c;
+};
+
+struct beacon b={10};
+
+
+/*---------------------------------------------------------------------------*/
+
+// Crear el proceso de enviar beacons
+PROCESS(send_beacon, "Enviar Mensajes de Beacon");
+
+// Crear el proceso de seleccion de padre
+PROCESS(select_parent, "Selecciona un parent");
+
+AUTOSTART_PROCESSES( &send_beacon,&select_parent);
 /*---------------------------------------------------------------------------*/
 static void
 broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 {
-  printf("broadcast message received from %d.%d: '%s'\n",
-         from->u8[0], from->u8[1], (char *)packetbuf_dataptr());
+  // Recibir el beacon que llego e incluirlo en la tabla de padres cantidatos
+  printf("broadcast message received from %d.%d: '%d'\n",
+         from->u8[0], from->u8[1], (int)packetbuf_dataptr());
 }
 static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
 static struct broadcast_conn broadcast;
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(example_broadcast_process, ev, data)
+//Codigo del proceso send beacon
+PROCESS_THREAD(send_beacon,ev,data)
 {
   static struct etimer et;
 
@@ -74,13 +95,47 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
     /* Delay 2-4 seconds */
     etimer_set(&et, CLOCK_SECOND * 4 + random_rand() % (CLOCK_SECOND * 4));
 
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+    // esto verifica que id del nodo es el que esta enviando
+    if(linkaddr_node_addr.u8[0] == 1 &&
+       linkaddr_node_addr.u8[1] == 0) {
+      printf("Soy el uno\n");
+      b.rssi_c=0;
 
-    packetbuf_copyfrom("Hello", 6);
+    }
+
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+    packetbuf_copyfrom(&b,sizeof(struct beacon));// direccion en donde esta ubicado el beacon y el tamaño
     broadcast_send(&broadcast);
     printf("broadcast message sent\n");
   }
 
   PROCESS_END();
 }
+
+
+/*---------------------------------------------------------------------------*/
+//Codigo del proceso select_parent
+PROCESS_THREAD(select_parent,ev,data)
+{
+
+  PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
+
+  PROCESS_BEGIN();
+
+  broadcast_open(&broadcast, 129, &broadcast_call);
+
+  while(1) {
+    // este evento corre cuando le llega un evento a este proceso
+    PROCESS_YIELD();// cede el procesador hasta que llegue un evento
+    if(ev== PROCESS_EVENT_CONTINUE){
+      // Cuando llegue un evento de este tipo se va a correr esto
+      // Recorrer la tabla de padres cantidatos y seleccionar un padre
+    }
+
+
+  }
+
+  PROCESS_END();
+}
+
 /*---------------------------------------------------------------------------*/
