@@ -51,12 +51,19 @@
 //Estructura de Beacon
 struct beacon{
   // el id correspondiente al nodo actual
-  
   linkaddr_t id;
+  // el rssi que tiene para legar al root
   signed int rssi_c;
 };
+// declaramos que la estructura b es de tipo beacon
+struct beacon b;
 
-struct beacon b={10};
+// Esto no funciona
+// definir el id del nodo que hará el envío
+//b.id=linkaddr_node_addr.u8[0],linkaddr_node_addr.u8[1];
+//definir el rssi del camino para inicializar un nodo cualquiera
+
+
 
 
 /*---------------------------------------------------------------------------*/
@@ -73,8 +80,21 @@ static void
 broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 {
   // Recibir el beacon que llego e incluirlo en la tabla de padres cantidatos
-  printf("broadcast message received from %d.%d: '%d'\n",
-         from->u8[0], from->u8[1], (int)packetbuf_dataptr());
+  printf("broadcast message received from %d.%d ",from->u8[0], from->u8[1]);
+
+  uint16_t len=packetbuf_datalen();
+  uint8_t i;
+  for (i=0;i<len;i++){
+    printf("Itera %d\n",i);
+    printf("%c",((char *)packetbuf_dataptr())[i]);
+
+  }
+  printf("\n");
+
+
+
+
+          //(char *)packetbuf_dataptr()
 }
 static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
 static struct broadcast_conn broadcast;
@@ -90,23 +110,24 @@ PROCESS_THREAD(send_beacon,ev,data)
 
   broadcast_open(&broadcast, 129, &broadcast_call);
 
-  while(1) {
 
+  while(1) {
+    b.id=linkaddr_node_addr;
+    b.rssi_c=-100;
     /* Delay 2-4 seconds */
     etimer_set(&et, CLOCK_SECOND * 4 + random_rand() % (CLOCK_SECOND * 4));
 
     // esto verifica que id del nodo es el que esta enviando
     if(linkaddr_node_addr.u8[0] == 1 &&
        linkaddr_node_addr.u8[1] == 0) {
-      printf("Soy el uno\n");
-      b.rssi_c=0;
-
+         b.rssi_c=0;
+         printf("Nodo root %d\n",b.rssi_c);
     }
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
     packetbuf_copyfrom(&b,sizeof(struct beacon));// direccion en donde esta ubicado el beacon y el tamaño
     broadcast_send(&broadcast);
-    printf("broadcast message sent\n");
+    printf("broadcast message sent %d\n", b.rssi_c);
   }
 
   PROCESS_END();
