@@ -79,22 +79,21 @@ AUTOSTART_PROCESSES( &send_beacon,&select_parent);
 static void
 broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 {
+  // Se define la estructura Beacon de entrada con los mensajes de rssi de camino
+  // y el ID del nodo
+  struct beacon *b_message;
+  b_message = packetbuf_dataptr();
+  signed int b_message_rssi_c =b_message->rssi_c;
+  linkaddr_t b_message_id = b_message-> id;
+  // se debe tomar el rssi del enlace tambien y sumarlo con el rss del camino
+  uint16_t rssi_link=packetbuf_attr(PACKETBUF_ATTR_RSSI);
+  signed int rssi_total=b_message_rssi_c+rssi_link;
   // Recibir el beacon que llego e incluirlo en la tabla de padres cantidatos
-  printf("broadcast message received from %d.%d ",from->u8[0], from->u8[1]);
+  //printf("broadcast message received from %d.%d ",from->u8[0], from->u8[1]);
+  printf("Node %d RSSI PATH %d link %d\n" ,b_message_id,b_message_rssi_c,rssi_total);
+  //printf("%d ",b_message->rssi_c);
+  //printf("%d\n", b_message_id);
 
-  uint16_t len=packetbuf_datalen();
-  uint8_t i;
-  for (i=0;i<len;i++){
-    printf("Itera %d\n",i);
-    printf("%c",((char *)packetbuf_dataptr())[i]);
-
-  }
-  printf("\n");
-
-
-
-
-          //(char *)packetbuf_dataptr()
 }
 static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
 static struct broadcast_conn broadcast;
@@ -113,7 +112,7 @@ PROCESS_THREAD(send_beacon,ev,data)
 
   while(1) {
     b.id=linkaddr_node_addr;
-    b.rssi_c=-100;
+    b.rssi_c=-1000;
     /* Delay 2-4 seconds */
     etimer_set(&et, CLOCK_SECOND * 4 + random_rand() % (CLOCK_SECOND * 4));
 
