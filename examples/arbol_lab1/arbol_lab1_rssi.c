@@ -55,19 +55,21 @@ struct beacon{
   // el rssi que tiene para legar al root
   signed int rssi_c;
 };
-// declaramos que la estructura b es de tipo beacon
+// Declaramos que la estructura b es de tipo beacon
 struct beacon b;
-
-// Esto no funciona
-// definir el id del nodo que hará el envío
-//b.id=linkaddr_node_addr.u8[0],linkaddr_node_addr.u8[1];
-//definir el rssi del camino para inicializar un nodo cualquiera
-
-
-
 
 /*---------------------------------------------------------------------------*/
 
+//Estructura de Item de la lista
+struct table_possible_parent{
+  // ID del mensaje recibio
+  linkaddr_t id;
+  // rssi con enlace
+  signed int rssi_total;
+};
+
+struct table_possible_parent table_pc;
+/*---------------------------------------------------------------------------*/
 // Crear el proceso de enviar beacons
 PROCESS(send_beacon, "Enviar Mensajes de Beacon");
 
@@ -91,8 +93,11 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   // Recibir el beacon que llego e incluirlo en la tabla de padres cantidatos
   //printf("broadcast message received from %d.%d ",from->u8[0], from->u8[1]);
   printf("Node %d RSSI PATH %d link %d\n" ,b_message_id,b_message_rssi_c,rssi_total);
-  //printf("%d ",b_message->rssi_c);
-  //printf("%d\n", b_message_id);
+  // una vez se mete en la lista de padres, enviale al proceso que continua
+  // guardar en la tabla de padres
+  table_pc.id=b_message_id;
+  table_pc.rssi_total=rssi_total;
+  process_post(&select_parent,PROCESS_EVENT_CONTINUE,&(table_pc));// eN LUGAR DE NULL CREO QUE LA LISTA
 
 }
 static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
@@ -148,8 +153,11 @@ PROCESS_THREAD(select_parent,ev,data)
     // este evento corre cuando le llega un evento a este proceso
     PROCESS_YIELD();// cede el procesador hasta que llegue un evento
     if(ev== PROCESS_EVENT_CONTINUE){
+      // Definir una estructura de lo que llego que apunte al data recibido
+      struct table_possible_parent *recv_table= data;
       // Cuando llegue un evento de este tipo se va a correr esto
       // Recorrer la tabla de padres cantidatos y seleccionar un padre
+      printf("Se recibió ID %d y RSSI %d\n",recv_table->id,recv_table->rssi_total);
     }
 
 
