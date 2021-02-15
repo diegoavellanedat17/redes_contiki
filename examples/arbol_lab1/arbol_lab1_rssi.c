@@ -216,8 +216,8 @@ PROCESS_THREAD(select_parent,ev,data)
         }
       }
       printf("Nodo PARENT %d \n", recv_table->id[MAX_RSSI_LOCATION]);
+      // si escojo padre actualizo el camino del rssi y envìo al proceso de enviar beacon 
     }
-
 
   }
 
