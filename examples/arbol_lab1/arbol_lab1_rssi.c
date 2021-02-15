@@ -61,7 +61,7 @@ struct beacon{
 };
 // Declaramos que la estructura b es de tipo beacon
 struct beacon b;
-
+signed int rssi_parent= -1000;
 /*---------------------------------------------------------------------------*/
 
 //Estructura de Item de la lista
@@ -112,7 +112,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
     // comparamos si son iguales los mensajes del nodo
     if(linkaddr_cmp(&b_message_id,&table_pc.id[i])!=0){
       found = true;
-      printf("Update en pos %d\n",i );
+      //printf("Update en pos %d\n",i );
       table_pc.id[i]=b_message_id;
       table_pc.rssi_total[i]=rssi_total;
       break;
@@ -125,7 +125,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 // si no fue encontrado agregarlo en la ultima posicion;
   if(found==false){
 
-    printf("Append en pos %d\n", table_pc.pos_to_save);
+    //printf("Append en pos %d\n", table_pc.pos_to_save);
     table_pc.id[table_pc.pos_to_save]=b_message_id;
     table_pc.rssi_total[table_pc.pos_to_save]=rssi_total;
     table_pc.pos_to_save++;
@@ -134,7 +134,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   //table_pc.rssi_total[0]=rssi_total;
 
 
-  process_post(&select_parent,PROCESS_EVENT_CONTINUE,&(table_pc));// eN LUGAR DE NULL CREO QUE LA LISTA
+  process_post(&select_parent,PROCESS_EVENT_CONTINUE,&(table_pc));
 
 }
 static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
@@ -143,18 +143,29 @@ static struct broadcast_conn broadcast;
 //Codigo del proceso send beacon
 PROCESS_THREAD(send_beacon,ev,data)
 {
+
+
   static struct etimer et;
+
+  if(ev ==PROCESS_EVENT_CONTINUE){
+    rssi_parent = data;
+    //printf("el que debo poner es %d \n", rssi_parent);
+  }
 
   PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
 
   PROCESS_BEGIN();
 
+
+
   broadcast_open(&broadcast, 129, &broadcast_call);
 
 
   while(1) {
+
     b.id=linkaddr_node_addr;
-    b.rssi_c=-1000;
+    b.rssi_c=rssi_parent;
+
     /* Delay 2-4 seconds */
     etimer_set(&et, CLOCK_SECOND * 4 + random_rand() % (CLOCK_SECOND * 4));
 
@@ -168,7 +179,7 @@ PROCESS_THREAD(send_beacon,ev,data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
     packetbuf_copyfrom(&b,sizeof(struct beacon));// direccion en donde esta ubicado el beacon y el tamaño
     broadcast_send(&broadcast);
-    //printf("broadcast message sent %d\n", b.rssi_c);
+    printf("broadcast message sent %d\n", b.rssi_c);
   }
 
   PROCESS_END();
@@ -196,13 +207,11 @@ PROCESS_THREAD(select_parent,ev,data)
       // Recorrer la tabla de padres cantidatos y seleccionar un padre
       //printf("Se recibió ID %d y RSSI %d\n",recv_table->id[0],recv_table->rssi_total[0]);
       //Recorrer la tabla de rssi totales y escoger el menor
-      printf("mando el select parent \n");
+
       uint8_t i;
 
       for (i = 0; i < 10; ++i)
       {
-
-        printf("%d , itera %d \n",recv_table->rssi_total[i],i);
         if(recv_table->rssi_total[i]!=0 ){
 
           if(i==0){
@@ -216,7 +225,10 @@ PROCESS_THREAD(select_parent,ev,data)
         }
       }
       printf("Nodo PARENT %d \n", recv_table->id[MAX_RSSI_LOCATION]);
-      // si escojo padre actualizo el camino del rssi y envìo al proceso de enviar beacon 
+      // si escojo padre actualizo el camino del rssi y envìo al proceso de enviar beacon
+      signed int new_rssi = recv_table->rssi_total[MAX_RSSI_LOCATION];
+      // enviar dato en el nuevo proceso
+      process_post(&send_beacon,PROCESS_EVENT_CONTINUE,new_rssi);
     }
 
   }
