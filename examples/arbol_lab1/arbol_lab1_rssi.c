@@ -62,6 +62,7 @@ struct beacon{
 // Declaramos que la estructura b es de tipo beacon
 struct beacon b;
 signed int rssi_parent= -1000;
+const linkaddr_t node_root_id={{1,0}};
 /*---------------------------------------------------------------------------*/
 
 //Estructura de Item de la lista
@@ -130,13 +131,17 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
     table_pc.rssi_total[table_pc.pos_to_save]=rssi_total;
     table_pc.pos_to_save++;
   }
-  //table_pc.id[0]=b_message_id;
-  //table_pc.rssi_total[0]=rssi_total;
 
-
+  // Como el nodo root no tiene padre este no selecciona por lo tanto ir a este proceso solo
+  // es diferente del root
+  // esto verifica que id del nodo es el que esta enviando
+  if(linkaddr_cmp(&linkaddr_node_addr,&node_root_id)==0) {
   process_post(&select_parent,PROCESS_EVENT_CONTINUE,&(table_pc));
+  }
 
-}
+
+}  //table_pc.id[0]=b_message_id;
+  //table_pc.rssi_total[0]=rssi_total;
 static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
 static struct broadcast_conn broadcast;
 /*---------------------------------------------------------------------------*/
@@ -229,6 +234,7 @@ PROCESS_THREAD(select_parent,ev,data)
       signed int new_rssi = recv_table->rssi_total[MAX_RSSI_LOCATION];
       // enviar dato en el nuevo proceso
       process_post(&send_beacon,PROCESS_EVENT_CONTINUE,new_rssi);
+      //w
     }
 
   }
