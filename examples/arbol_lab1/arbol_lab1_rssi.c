@@ -47,6 +47,10 @@
 
 #include <stdio.h>
 
+#include <stdbool.h>
+
+uint8_t MAX_RSSI_LOCATION = 0;
+
 /*---------------------------------------------------------------------------*/
 //Estructura de Beacon
 struct beacon{
@@ -63,9 +67,10 @@ struct beacon b;
 //Estructura de Item de la lista
 struct table_possible_parent{
   // ID del mensaje recibio
-  linkaddr_t id;
+  linkaddr_t id[10];
   // rssi con enlace
-  signed int rssi_total;
+  signed int rssi_total[10];
+  uint16_t pos_to_save;
 };
 
 struct table_possible_parent table_pc;
@@ -87,6 +92,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   b_message = packetbuf_dataptr();
   signed int b_message_rssi_c =b_message->rssi_c;
   linkaddr_t b_message_id = b_message-> id;
+
   // se debe tomar el rssi del enlace tambien y sumarlo con el rss del camino
   uint16_t rssi_link=packetbuf_attr(PACKETBUF_ATTR_RSSI);
   signed int rssi_total=b_message_rssi_c+rssi_link;
@@ -95,8 +101,39 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   printf("Node %d RSSI PATH %d link %d\n" ,b_message_id,b_message_rssi_c,rssi_total);
   // una vez se mete en la lista de padres, enviale al proceso que continua
   // guardar en la tabla de padres
-  table_pc.id=b_message_id;
-  table_pc.rssi_total=rssi_total;
+  bool found = false; // variable se pone en true si es un nuevo nodo
+
+  //int table_size = sizeof table_pc / sizeof table_pc[0];
+  // Se recorre la tabla de ID completa, si no esta guardado to_append es verdadero,
+  //
+  uint8_t i;
+  for (i = 0; i < 10; ++i)
+  {
+    // comparamos si son iguales los mensajes del nodo
+    if(linkaddr_cmp(&b_message_id,&table_pc.id[i])!=0){
+      found = true;
+      printf("Update en pos %d\n",i );
+      table_pc.id[i]=b_message_id;
+      table_pc.rssi_total[i]=rssi_total;
+      break;
+    }
+     else{
+
+       found = false;
+     }
+  }
+// si no fue encontrado agregarlo en la ultima posicion;
+  if(found==false){
+
+    printf("Append en pos %d\n", table_pc.pos_to_save);
+    table_pc.id[table_pc.pos_to_save]=b_message_id;
+    table_pc.rssi_total[table_pc.pos_to_save]=rssi_total;
+    table_pc.pos_to_save++;
+  }
+  //table_pc.id[0]=b_message_id;
+  //table_pc.rssi_total[0]=rssi_total;
+
+
   process_post(&select_parent,PROCESS_EVENT_CONTINUE,&(table_pc));// eN LUGAR DE NULL CREO QUE LA LISTA
 
 }
@@ -131,7 +168,7 @@ PROCESS_THREAD(send_beacon,ev,data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
     packetbuf_copyfrom(&b,sizeof(struct beacon));// direccion en donde esta ubicado el beacon y el tamaño
     broadcast_send(&broadcast);
-    printf("broadcast message sent %d\n", b.rssi_c);
+    //printf("broadcast message sent %d\n", b.rssi_c);
   }
 
   PROCESS_END();
@@ -157,7 +194,28 @@ PROCESS_THREAD(select_parent,ev,data)
       struct table_possible_parent *recv_table= data;
       // Cuando llegue un evento de este tipo se va a correr esto
       // Recorrer la tabla de padres cantidatos y seleccionar un padre
-      printf("Se recibió ID %d y RSSI %d\n",recv_table->id,recv_table->rssi_total);
+      //printf("Se recibió ID %d y RSSI %d\n",recv_table->id[0],recv_table->rssi_total[0]);
+      //Recorrer la tabla de rssi totales y escoger el menor
+      printf("mando el select parent \n");
+      uint8_t i;
+
+      for (i = 0; i < 10; ++i)
+      {
+
+        printf("%d , itera %d \n",recv_table->rssi_total[i],i);
+        if(recv_table->rssi_total[i]!=0 ){
+
+          if(i==0){
+            MAX_RSSI_LOCATION=0;
+          }
+          else{
+            if(recv_table->rssi_total[i] >= recv_table->rssi_total[MAX_RSSI_LOCATION]){
+              MAX_RSSI_LOCATION=i;
+            }
+          }
+        }
+      }
+      printf("Nodo PARENT %d \n", recv_table->id[MAX_RSSI_LOCATION]);
     }
 
 
