@@ -51,6 +51,7 @@
 
 uint8_t MAX_RSSI_LOCATION = 0;
 
+
 /*---------------------------------------------------------------------------*/
 //Estructura de Beacon
 struct beacon{
@@ -75,6 +76,21 @@ struct table_possible_parent{
 };
 
 struct table_possible_parent table_pc;
+
+/*---------------------------------------------------------------------------*/
+// Para declarar bien un item de una lista se hace con
+struct posible_parent{
+  struct posible_parent *next;
+  linkaddr_t id;
+  signed int rssi_c;
+
+};
+/*---------------------------------------------------------------------------*/
+//Definir la lista de padres candidatos
+LIST(list_possible_parents);
+MEMB(parent_candidato, struct posible_parent,15);
+
+
 /*---------------------------------------------------------------------------*/
 // Crear el proceso de enviar beacons
 PROCESS(send_beacon, "Enviar Mensajes de Beacon");
@@ -94,51 +110,19 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   signed int b_message_rssi_c =b_message->rssi_c;
   linkaddr_t b_message_id = b_message-> id;
 
+
   // se debe tomar el rssi del enlace tambien y sumarlo con el rss del camino
   uint16_t rssi_link=packetbuf_attr(PACKETBUF_ATTR_RSSI);
   signed int rssi_total=b_message_rssi_c+rssi_link;
-  // Recibir el beacon que llego e incluirlo en la tabla de padres cantidatos
-  //printf("broadcast message received from %d.%d ",from->u8[0], from->u8[1]);
+
+  struct posible_parent *n_posible_parent;
+  n_posible_parent->id=b_message_id;
+  n_posible_parent->rssi_c= rssi_total;
+
   printf("Node %d.%d RSSI PATH %d link %d\n" ,b_message_id.u8[0],b_message_id.u8[1],b_message_rssi_c,rssi_total);
-  // una vez se mete en la lista de padres, enviale al proceso que continua
-  // guardar en la tabla de padres
-  bool found = false; // variable se pone en true si es un nuevo nodo
-
-  //int table_size = sizeof table_pc / sizeof table_pc[0];
-  // Se recorre la tabla de ID completa, si no esta guardado to_append es verdadero,
-  //
-  uint8_t i;
-  for (i = 0; i < 10; ++i)
-  {
-    // comparamos si son iguales los mensajes del nodo
-    if(linkaddr_cmp(&b_message_id,&table_pc.id[i])!=0){
-      found = true;
-      //printf("Update en pos %d\n",i );
-      table_pc.id[i]=b_message_id;
-      table_pc.rssi_total[i]=rssi_total;
-      break;
-    }
-     else{
-
-       found = false;
-     }
-  }
-// si no fue encontrado agregarlo en la ultima posicion;
-  if(found==false){
-
-    //printf("Append en pos %d\n", table_pc.pos_to_save);
-    table_pc.id[table_pc.pos_to_save]=b_message_id;
-    table_pc.rssi_total[table_pc.pos_to_save]=rssi_total;
-    table_pc.pos_to_save++;
-  }
-
-  // Como el nodo root no tiene padre este no selecciona por lo tanto ir a este proceso solo
-  // es diferente del root
-  // esto verifica que id del nodo es el que esta enviando
-  if(linkaddr_cmp(&linkaddr_node_addr,&node_root_id)==0) {
-  process_post(&select_parent,PROCESS_EVENT_CONTINUE,&(table_pc));
-  }
-
+  // meter en la lista de padres cantidatos el mensaje de beacon
+  list_push(list_possible_parents,n_posible_parent);
+  printf("tamaño de la lista = %d\n ",list_length(list_possible_parents));
 
 }
 
