@@ -171,7 +171,7 @@ PROCESS_THREAD(send_beacon,ev,data)
 
     /* Delay 2-4 seconds */
     etimer_set(&et, CLOCK_SECOND * 4 + random_rand() % (CLOCK_SECOND * 4));
-
+uint16_t rssi_link=packetbuf_attr(PACKETBUF_ATTRuint16_t rssi_link=packetbuf_attr(PACKETBUF_ATTR_RSSI);_RSSI);
     // esto verifica que id del nodo es el que esta enviando
     if(linkaddr_node_addr.u8[0] == 1 &&
        linkaddr_node_addr.u8[1] == 0) {

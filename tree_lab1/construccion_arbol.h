@@ -13,6 +13,9 @@
 #define INF_NEG -9999
 // El maximo en la tabla de padres candidatos podemos considerar un remove o un update
 #define MAX_PARENTS 30
+
+
+
 ////////////////////////////////////
 // Estructura del mensaje de beacon qu voy a enviar
 struct beacon{
@@ -36,5 +39,6 @@ struct possible_parent {
 // Asignacion de estructura
 struct beacon b;
 struct node n;
+struct possible_parent *selected_parent;
 // llenar el beacon con la informacion
 void fill_beacon_msg (struct beacon *b,linkaddr_t id,signed int rssi_c);

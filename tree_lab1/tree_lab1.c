@@ -49,12 +49,17 @@
 // Librerias propias
 #include <construccion_arbol.h>
 
+
+
 //LIberia del radio
 //#include cc2420.h
 /*---------------------------------------------------------------------------*/
-
+// Crear el proceso de seleccion de padre
+PROCESS(select_parent, "Selecciona un Padre");
+// Crear proceso enviar un beacon
 PROCESS(send_beacon, "Envia Beacons Periodicamente");
-AUTOSTART_PROCESSES(&send_beacon);
+AUTOSTART_PROCESSES(&send_beacon,&select_parent);
+
 
 /*---------------------------------------------------------------------------*/
 /* En MEMB definimos un espacio de memoria en el cual se almacenará la lista  */
@@ -62,6 +67,8 @@ MEMB(possible_parent_memb, struct possible_parent, MAX_PARENTS);
 // Se define de tipo lista
 LIST(possible_parents_list);
 /*---------------------------------------------------------------------------*/
+
+
 
 static void
 broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
@@ -74,13 +81,21 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   b_recv=*((struct beacon*)msg);// lo convierto tipo beacon y luego cojo su info y la guardo
   signed int b_rec_rssi_c =b_recv.rssi_c;
   linkaddr_t b_rec_id = b_recv.id;
+
+  // Sacar el RSSI del enlace y aca ya tengo el rssi total
+  uint16_t rssi_link=packetbuf_attr(PACKETBUF_ATTR_RSSI);
+  signed int rssi_total=b_rec_rssi_c+rssi_link;
   // Imprimo lo que recibo y luego lo meto en una lista
   printf("broadcast message received from %d with rssi_c = %d\n",b_rec_id.u8[0],b_rec_rssi_c);
-  // Guardar los datos en una lista
-  /* Mirar si ya conocemos este padre candidato Recorriendo la lista */
+
+  // Si soy el nodo root no tengo que hacer ninguna lista
+  if (linkaddr_node_addr.u8[0]!=1) {
 
   //Defino que la variable p será un padre posible
   struct possible_parent *p;
+
+  // Guardar los datos en una lista
+  /* Mirar si ya conocemos este padre candidato Recorriendo la lista */
 
   for(p = list_head(possible_parents_list); p != NULL; p = list_item_next(p)) {
 
@@ -89,7 +104,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
     if(linkaddr_cmp(&p->id, &b_rec_id )) {
       printf("Encontre al nodo en la lista Tenia rssi %d\n",p->rssi_c);
       // Hare un update del RSSI
-      p->rssi_c=b_rec_rssi_c;
+      p->rssi_c=rssi_total;
       printf("Nuevo rssi %d\n",p->rssi_c);
       break;
     }
@@ -110,11 +125,14 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
     linkaddr_copy(&p->id, &b_rec_id);// Guardar en p el nuevo id para la entrada
     p->rssi_c =b_rec_rssi_c;
     list_add(possible_parents_list, p);
-    printf("Guardado Tamano lista %d\n",list_length(possible_parents_list));
+  }
 
+    printf("Proceso de Seleccion de padre \n");
+    process_post(&select_parent,PROCESS_EVENT_CONTINUE,&(possible_parents_list));
   }
 
 }
+
 static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
 static struct broadcast_conn broadcast;
 
@@ -155,4 +173,53 @@ PROCESS_THREAD(send_beacon, ev, data)
 
   PROCESS_END();
 
+}
+
+
+/*---------------------------------------------------------------------------*/
+//Codigo del proceso select_parent
+PROCESS_THREAD(select_parent,ev,data)
+{
+
+  PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
+
+  PROCESS_BEGIN();
+
+  broadcast_open(&broadcast, 129, &broadcast_call);
+
+  while(1) {
+    // este evento corre cuando le llega un evento a este proceso
+    PROCESS_YIELD();// cede el procesador hasta que llegue un evento
+    if(ev== PROCESS_EVENT_CONTINUE){
+      //Recorrer la tabla de rssi totales y escoger el menor
+
+      // Recorrer la lista y ver los valores de RSSI
+      struct possible_parent *p;
+      struct possible_parent *p_header;
+      // Asigno el rssi seleccionado a la cabeza de la lista
+
+      signed int rssi_selected;
+      p_header=list_head(possible_parents_list);
+      rssi_selected=p_header->rssi_c;
+
+
+      for(p = list_head(possible_parents_list); p != NULL; p = list_item_next(p)) {
+
+        /* Recorro la lista competa y voy imprimiendo los valores de rssi */
+        printf(" rssi %d,",p->rssi_c );
+        if(p->rssi_c >= rssi_selected ){
+          selected_parent=p;
+          rssi_selected=p->rssi_c;
+        }
+
+      }
+      printf("\n" );
+      printf("El padre seleccionado hasta ahora es %d\n", selected_parent->id.u8[0] );
+      // Actualizar el rssi que voy a empezar a divulgar
+      n.rssi_c=selected_parent->rssi_c;
+    }
+
+  }
+
+  PROCESS_END();
 }
