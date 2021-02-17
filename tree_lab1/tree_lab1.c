@@ -46,28 +46,53 @@
 #include "dev/leds.h"
 
 #include <stdio.h>
+// Librerias propias
+#include <construccion_arbol.h>
+
+//LIberia del radio
+//#include cc2420.h
 /*---------------------------------------------------------------------------*/
-PROCESS(example_broadcast_process, "Broadcast example");
-AUTOSTART_PROCESSES(&example_broadcast_process);
+
+PROCESS(send_beacon, "Envia Beacons Periodicamente");
+AUTOSTART_PROCESSES(&send_beacon);
+
 /*---------------------------------------------------------------------------*/
 static void
 broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 {
-  printf("broadcast message received from %d.%d: '%s'\n",
-         from->u8[0], from->u8[1], (char *)packetbuf_dataptr());
+
+  struct beacon b_recv;
+  // Imprimir el Beacon Recibido apunta a donde esta guardado el packet
+  void *msg= packetbuf_dataptr();
+
+  b_recv=*((struct beacon*)msg);// lo convierto tipo beacon y luego cojo su info y la guardo
+
+
+  printf("broadcast message received from %d with rssi_c = %d\n",b_recv.id.u8[0],b_recv.rssi_c);
 }
 static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
 static struct broadcast_conn broadcast;
+
 /*---------------------------------------------------------------------------*/
-PROCESS_THREAD(example_broadcast_process, ev, data)
+//Proceso send beacon
+PROCESS_THREAD(send_beacon, ev, data)
 {
+  // Las variables van antes del process PROCESS_BEGIN
+  // estas instrucciones corren una vez cuando el proceso inicia
   static struct etimer et;
 
   PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
 
+
   PROCESS_BEGIN();
 
   broadcast_open(&broadcast, 129, &broadcast_call);
+  if (linkaddr_node_addr.u8[0]==1) {
+    n.rssi_c=0;
+  }
+  else{
+    n.rssi_c = INF_NEG ;
+  }
 
   while(1) {
 
@@ -76,11 +101,13 @@ PROCESS_THREAD(example_broadcast_process, ev, data)
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 
-    packetbuf_copyfrom("Hello", 6);
+    fill_beacon_msg(&b,linkaddr_node_addr,n.rssi_c);
+
+    packetbuf_copyfrom(&b, sizeof(struct beacon));
     broadcast_send(&broadcast);
     printf("broadcast message sent\n");
   }
 
   PROCESS_END();
+
 }
-/*---------------------------------------------------------------------------*/
