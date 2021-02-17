@@ -247,6 +247,9 @@ PROCESS_THREAD(broadcast_process, ev, data)
     /* Send a broadcast every 16 - 32 seconds */
     etimer_set(&et, CLOCK_SECOND * 16 + random_rand() % (CLOCK_SECOND * 16));
 
+//Para boradcast
+static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
+static struct broadcast_conn broadcast;
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 
     msg.seqno = seqno;

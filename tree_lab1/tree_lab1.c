@@ -58,8 +58,10 @@
 PROCESS(select_parent, "Selecciona un Padre");
 // Crear proceso enviar un beacon
 PROCESS(send_beacon, "Envia Beacons Periodicamente");
-AUTOSTART_PROCESSES(&send_beacon,&select_parent);
-
+// Crear Procesos de Unicast
+PROCESS(unicast_msg, "Mensajes de Unicast");
+AUTOSTART_PROCESSES(&send_beacon,&select_parent,&unicast_msg);
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /* En MEMB definimos un espacio de memoria en el cual se almacenará la lista  */
@@ -67,7 +69,6 @@ MEMB(possible_parent_memb, struct possible_parent, MAX_PARENTS);
 // Se define de tipo lista
 LIST(possible_parents_list);
 /*---------------------------------------------------------------------------*/
-
 
 
 static void
@@ -133,8 +134,40 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 
 }
 
+//Para boradcast
 static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
 static struct broadcast_conn broadcast;
+
+/*---------------------------------------------------------------------------*/
+static void
+recv_uc(struct unicast_conn *c, const linkaddr_t *from)
+{
+  printf("unicast message received from %d.%d\n",
+	 from->u8[0], from->u8[1]);
+   // si no soy el nodo 1 debo retransmitir
+
+   if(linkaddr_node_addr.u8[0]!=1){
+     printf("Retrnasmitir\n");
+     
+   }
+}
+/*---------------------------------------------------------------------------*/
+static void
+sent_uc(struct unicast_conn *c, int status, int num_tx)
+{
+  const linkaddr_t *dest = packetbuf_addr(PACKETBUF_ADDR_RECEIVER);
+  if(linkaddr_cmp(dest, &linkaddr_null)) {
+    return;
+  }
+  printf("unicast message sent to %d.%d: \n",
+    dest->u8[0], dest->u8[1]);
+}
+
+
+//Para unicast
+static const struct unicast_callbacks unicast_callbacks = {recv_uc, sent_uc};
+static struct unicast_conn uc;
+/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 //Proceso send beacon
@@ -190,7 +223,7 @@ PROCESS_THREAD(select_parent,ev,data)
   while(1) {
     // este evento corre cuando le llega un evento a este proceso
     PROCESS_YIELD();// cede el procesador hasta que llegue un evento
-    if(ev== PROCESS_EVENT_CONTINUE){
+      if(ev== PROCESS_EVENT_CONTINUE){
       //Recorrer la tabla de rssi totales y escoger el menor
 
       // Recorrer la lista y ver los valores de RSSI
@@ -219,9 +252,43 @@ PROCESS_THREAD(select_parent,ev,data)
       printf("#L %d 0\n", n.preferred_parent.u8[0]);
       linkaddr_copy(&n.preferred_parent,&selected_parent->id);
       printf("#L %d 1\n", n.preferred_parent.u8[0]);
+
     }
 
   }
 
   PROCESS_END();
 }
+
+//Proceso para enviar unicast
+
+/*---------------------------------------------------------------------------*/
+PROCESS_THREAD(unicast_msg, ev, data)
+{
+  PROCESS_EXITHANDLER(unicast_close(&uc);)
+
+  PROCESS_BEGIN();
+
+  unicast_open(&uc, 146, &unicast_callbacks);
+
+  while(1) {
+    static struct etimer et;
+    linkaddr_t addr;
+
+
+    etimer_set(&et, CLOCK_SECOND * 5 + random_rand() % (CLOCK_SECOND * 5));
+
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+
+    packetbuf_copyfrom("Hello", 5);
+    addr.u8[0] = 1;
+    addr.u8[1] = 0;
+    if(!linkaddr_cmp(&addr, &linkaddr_node_addr)) {
+      unicast_send(&uc, &n.preferred_parent);
+    }
+
+  }
+
+  PROCESS_END();
+}
+/*---------------------------------------------------------------------------*/
