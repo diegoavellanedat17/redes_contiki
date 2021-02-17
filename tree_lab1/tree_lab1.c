@@ -38,11 +38,11 @@
  */
 
 #include "contiki.h"
+#include "lib/list.h"
+#include "lib/memb.h"
 #include "net/rime/rime.h"
 #include "random.h"
-
 #include "dev/button-sensor.h"
-
 #include "dev/leds.h"
 
 #include <stdio.h>
@@ -57,6 +57,12 @@ PROCESS(send_beacon, "Envia Beacons Periodicamente");
 AUTOSTART_PROCESSES(&send_beacon);
 
 /*---------------------------------------------------------------------------*/
+/* En MEMB definimos un espacio de memoria en el cual se almacenará la lista  */
+MEMB(possible_parent_memb, struct possible_parent, MAX_PARENTS);
+// Se define de tipo lista
+LIST(possible_parents_list);
+/*---------------------------------------------------------------------------*/
+
 static void
 broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 {
@@ -66,9 +72,48 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   void *msg= packetbuf_dataptr();
 
   b_recv=*((struct beacon*)msg);// lo convierto tipo beacon y luego cojo su info y la guardo
+  signed int b_rec_rssi_c =b_recv.rssi_c;
+  linkaddr_t b_rec_id = b_recv.id;
+  // Imprimo lo que recibo y luego lo meto en una lista
+  printf("broadcast message received from %d with rssi_c = %d\n",b_rec_id.u8[0],b_rec_rssi_c);
+  // Guardar los datos en una lista
+  /* Mirar si ya conocemos este padre candidato Recorriendo la lista */
 
+  //Defino que la variable p será un padre posible
+  struct possible_parent *p;
 
-  printf("broadcast message received from %d with rssi_c = %d\n",b_recv.id.u8[0],b_recv.rssi_c);
+  for(p = list_head(possible_parents_list); p != NULL; p = list_item_next(p)) {
+
+    /* La idea es que si encuentra un paren con ese mismo id le cambie el rssi en la lista */
+
+    if(linkaddr_cmp(&p->id, &b_rec_id )) {
+      printf("Encontre al nodo en la lista Tenia rssi %d\n",p->rssi_c);
+      // Hare un update del RSSI
+      p->rssi_c=b_rec_rssi_c;
+      printf("Nuevo rssi %d\n",p->rssi_c);
+      break;
+    }
+  }
+  // Si N es NULL quiere decir que Recorrio toda la lista y no encontro a nadie con el mismo ID
+  /* If n is NULL, this neighbor was not found in our list, and we
+     allocate a new struct neighbor from the neighbors_memb memory
+     pool. */
+  if(p == NULL) {
+    p = memb_alloc(&possible_parent_memb);
+    /* If we could not allocate a new neighbor entry, we give up. We
+       could have reused an old neighbor entry, but we do not do this
+       for now. */
+    if(p == NULL) {
+      return;
+    }
+
+    linkaddr_copy(&p->id, &b_rec_id);// Guardar en p el nuevo id para la entrada
+    p->rssi_c =b_rec_rssi_c;
+    list_add(possible_parents_list, p);
+    printf("Guardado Tamano lista %d\n",list_length(possible_parents_list));
+
+  }
+
 }
 static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
 static struct broadcast_conn broadcast;

@@ -174,6 +174,8 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
 
     /* Place the neighbor on the neighbor list. */
     list_add(neighbors_list, n);
+    printf("Tamano lista %d\n",list_length(neighbors_list));
+
   }
 
   /* We can now fill in the fields in our neighbor entry. */
@@ -259,7 +261,7 @@ PROCESS_THREAD(broadcast_process, ev, data)
 PROCESS_THREAD(unicast_process, ev, data)
 {
   PROCESS_EXITHANDLER(unicast_close(&unicast);)
-    
+
   PROCESS_BEGIN();
 
   unicast_open(&unicast, 146, &unicast_callbacks);
@@ -269,9 +271,9 @@ PROCESS_THREAD(unicast_process, ev, data)
     struct unicast_message msg;
     struct neighbor *n;
     int randneighbor, i;
-    
+
     etimer_set(&et, CLOCK_SECOND * 8 + random_rand() % (CLOCK_SECOND * 8));
-    
+
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 
     /* Pick a random neighbor from our list and send a unicast message to it. */
