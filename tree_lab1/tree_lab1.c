@@ -206,17 +206,19 @@ PROCESS_THREAD(select_parent,ev,data)
       for(p = list_head(possible_parents_list); p != NULL; p = list_item_next(p)) {
 
         /* Recorro la lista competa y voy imprimiendo los valores de rssi */
-        printf(" rssi %d,",p->rssi_c );
         if(p->rssi_c >= rssi_selected ){
           selected_parent=p;
           rssi_selected=p->rssi_c;
         }
 
       }
-      printf("\n" );
-      printf("El padre seleccionado hasta ahora es %d\n", selected_parent->id.u8[0] );
+
+      printf("Padre seleccionado %d\n", selected_parent->id.u8[0] );
       // Actualizar el rssi que voy a empezar a divulgar
       n.rssi_c=selected_parent->rssi_c;
+      printf("#L %d 0\n", n.preferred_parent.u8[0]);
+      linkaddr_copy(&n.preferred_parent,&selected_parent->id);
+      printf("#L %d 1\n", n.preferred_parent.u8[0]);
     }
 
   }
