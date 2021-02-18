@@ -330,6 +330,7 @@ PROCESS_THREAD(unicast_msg, ev, data)
       for(msg_retransmit = list_head(u_retransmit_msg_list); msg_retransmit != NULL; msg_retransmit = list_item_next(msg_retransmit)) {
 
 
+        printf("la longitud de la lista es : %d \n",list_length(u_retransmit_msg_list));
         aux_msg.id=msg_retransmit->id;
         aux_msg.msg=msg_retransmit->msg;
         printf("Retransmitir ID: %d \n", msg_retransmit->id.u8[0]);
