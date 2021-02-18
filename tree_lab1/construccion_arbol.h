@@ -13,6 +13,8 @@
 #define INF_NEG -9999
 // El maximo en la tabla de padres candidatos podemos considerar un remove o un update
 #define MAX_PARENTS 30
+// El maximo de Unicast messages para envío
+#define MAX_UNICAST_MSGS 30
 
 //
 /* This is the structure of unicast ping messages. */
@@ -38,6 +40,15 @@ struct possible_parent {
   struct possible_parent *next;
   linkaddr_t id;
   signed int rssi_c;
+
+};
+
+// Estructura de mensajes para retransmision */
+struct u_retransmit_msg {
+
+  struct u_retransmit_msg *next;
+  char* msg;
+  linkaddr_t id;
 
 };
 // Asignacion de estructura

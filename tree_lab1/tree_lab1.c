@@ -70,6 +70,13 @@ MEMB(possible_parent_memb, struct possible_parent, MAX_PARENTS);
 LIST(possible_parents_list);
 /*---------------------------------------------------------------------------*/
 
+/*---------------------------------------------------------------------------*/
+/* En MEMB definimos un espacio de memoria en el cual se almacenará la lista  */
+MEMB(u_retransmit_memb, struct u_retransmit_msg, MAX_UNICAST_MSGS);
+// Se define de tipo lista
+LIST(u_retransmit_msg_list);
+/*---------------------------------------------------------------------------*/
+
 
 static void
 broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
@@ -150,15 +157,38 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
   msg_recv=*((struct unicast_message*)msg);//
 
   printf("unicast message received from %d.%d payload %s\n",
-	 from->u8[0], from->u8[1],msg_recv.msg);
+	 msg_recv.id.u8[0], msg_recv.id.u8[1],msg_recv.msg);
 
-
+   // Defino el mensaje que se meterá en la lista
+   struct u_retransmit_msg *msg_retransmit;
    // si no soy el nodo 1 debo retransmitir
    if(linkaddr_node_addr.u8[0]!=1){
      printf("Retrnasmitir\n");
-     //Guardar en una lista de mensajes de unicast
+     //Defino que la variable p será un padre posible
+     for(msg_retransmit = list_head(u_retransmit_msg_list); msg_retransmit != NULL; msg_retransmit = list_item_next(msg_retransmit)) {
+       if(linkaddr_cmp(&msg_retransmit->id, &msg_recv.id )) {
+         // Si encontramos mensaje de ese mismo nodo no lo guardamos, quiere decir que
+         // aun no lo ha retransmitido
+         printf("Este nodo ya envio pero no hemos retransmitido \n");
+         break;
+       }
+     }
+     if(msg_retransmit == NULL) {
+       msg_retransmit = memb_alloc(&u_retransmit_memb);
+       /* If we could not allocate a new neighbor entry, we give up. We
+          could have reused an old neighbor entry, but we do not do this
+          for now. */
+       if(msg_retransmit == NULL) {
+         return;
+       }
+
+       linkaddr_copy(&msg_retransmit->id, &msg_recv.id);// Guardar en msg_retransmit el nuevo id para la entrada
+       msg_retransmit->msg =msg_recv.msg;
+       list_add(u_retransmit_msg_list, msg_retransmit);
+       printf("Mensaje Agregado a la lista \n");
 
    }
+  }
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -293,6 +323,20 @@ PROCESS_THREAD(unicast_msg, ev, data)
 
     if(linkaddr_node_addr.u8[0]!=1) {
       unicast_send(&uc, &n.preferred_parent);
+      // Aqui tambien recorro la lista de mensajes de unicast y conforme envìo elimino
+      // Defino el mensaje que se meterá en la lista
+      struct unicast_message aux_msg;
+      struct u_retransmit_msg *msg_retransmit;
+      for(msg_retransmit = list_head(u_retransmit_msg_list); msg_retransmit != NULL; msg_retransmit = list_item_next(msg_retransmit)) {
+
+
+        aux_msg.id=msg_retransmit->id;
+        aux_msg.msg=msg_retransmit->msg;
+        printf("Retransmitir ID: %d \n", msg_retransmit->id.u8[0]);
+        fill_unicast_msg(&aux_msg,aux_msg.id);
+        packetbuf_copyfrom(&aux_msg, sizeof(struct unicast_message));
+        unicast_send(&uc, &n.preferred_parent);
+      }
     }
 
   }
