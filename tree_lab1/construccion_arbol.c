@@ -46,3 +46,14 @@
    //b->id=id;
    b->rssi_c=rssi_c;
  }
+
+ // llenar el mensaje de unicast con la informacion
+ void fill_unicast_msg(struct unicast_message *unicast_msg,linkaddr_t id){
+   char str_aux[20];
+   strcpy(str_aux,"I am");
+   //strcpy(str_aux,(char *)id.u8[0]);
+   unicast_msg->msg="I am ";
+   //Link Address copy copia del segundo argumento en el primer once
+   linkaddr_copy(&unicast_msg->id,&id);
+
+ }

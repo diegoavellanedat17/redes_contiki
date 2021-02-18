@@ -142,13 +142,22 @@ static struct broadcast_conn broadcast;
 static void
 recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 {
-  printf("unicast message received from %d.%d\n",
-	 from->u8[0], from->u8[1]);
-   // si no soy el nodo 1 debo retransmitir
 
+  struct unicast_message msg_recv;
+  // Imprimir el Beacon Recibido apunta a donde esta guardado el packet
+  void *msg= packetbuf_dataptr();
+  // ya tengo el mensaje que debo retransmitir
+  msg_recv=*((struct unicast_message*)msg);//
+
+  printf("unicast message received from %d.%d payload %s\n",
+	 from->u8[0], from->u8[1],msg_recv.msg);
+
+
+   // si no soy el nodo 1 debo retransmitir
    if(linkaddr_node_addr.u8[0]!=1){
      printf("Retrnasmitir\n");
-     
+     //Guardar en una lista de mensajes de unicast
+
    }
 }
 /*---------------------------------------------------------------------------*/
@@ -273,17 +282,16 @@ PROCESS_THREAD(unicast_msg, ev, data)
 
   while(1) {
     static struct etimer et;
-    linkaddr_t addr;
 
 
     etimer_set(&et, CLOCK_SECOND * 5 + random_rand() % (CLOCK_SECOND * 5));
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+    fill_unicast_msg(&u_msg,linkaddr_node_addr);
 
-    packetbuf_copyfrom("Hello", 5);
-    addr.u8[0] = 1;
-    addr.u8[1] = 0;
-    if(!linkaddr_cmp(&addr, &linkaddr_node_addr)) {
+    packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
+
+    if(linkaddr_node_addr.u8[0]!=1) {
       unicast_send(&uc, &n.preferred_parent);
     }
 
