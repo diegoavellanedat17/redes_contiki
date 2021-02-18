@@ -336,6 +336,10 @@ PROCESS_THREAD(unicast_msg, ev, data)
         fill_unicast_msg(&aux_msg,aux_msg.id);
         packetbuf_copyfrom(&aux_msg, sizeof(struct unicast_message));
         unicast_send(&uc, &n.preferred_parent);
+        // Remover de la lista cada que voy enviando
+        list_remove(u_retransmit_msg_list,msg_retransmit);
+        //Liberar memoria
+        memb_free(&u_retransmit_memb,&msg_retransmit);
       }
     }
 
