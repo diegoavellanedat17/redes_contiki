@@ -60,9 +60,9 @@ PROCESS(select_parent, "Selecciona un Padre");
 // Crear proceso enviar un beacon
 PROCESS(send_beacon, "Envia Beacons Periodicamente");
 // Crear Procesos de Unicast
-//PROCESS(unicast_msg, "Mensajes de Unicast");
-//AUTOSTART_PROCESSES(&send_beacon,&select_parent,&unicast_msg);
-AUTOSTART_PROCESSES(&send_beacon,&select_parent);
+PROCESS(unicast_msg, "Mensajes de Unicast");
+AUTOSTART_PROCESSES(&send_beacon,&select_parent,&unicast_msg);
+//AUTOSTART_PROCESSES(&send_beacon,&select_parent);
 
 /*---------------------------------------------------------------------------*/
 
@@ -118,12 +118,12 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
      //if(linkaddr_cmp(&p->id, &b_rec_id )) {
      if(p->id.u8[0]==b_rec_id.u8[0]){
        int rssi_int= (int16_t) p->rssi_c;
-       printf("Encontre al nodo en la lista Tenia rssi %d\n",rssi_int);
+       printf("Este nodo ya estaba el la T.P:C con rssi %d\n",rssi_int);
        // Hare un update del RSSI
 
        p->rssi_c=rssi_total;
        int rssi_total_int=(int16_t) p->rssi_c;
-       printf("Nuevo rssi %d\n",rssi_total_int);
+       printf("RSSI Actualizado en la lista a: %d\n",rssi_total_int);
        break;
      }
 
@@ -152,9 +152,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   //   printf("Proceso de Seleccion de padre \n");
     process_post(&select_parent,PROCESS_EVENT_CONTINUE,NULL);
   }
-  else{
-    printf("Soy el sink no me meto con listas \n");
-  }
+
 
 }
 
@@ -163,68 +161,70 @@ static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
 static struct broadcast_conn broadcast;
 
 /*---------------------------------------------------------------------------*/
-// static void
-// recv_uc(struct unicast_conn *c, const linkaddr_t *from)
-//  {
-//
-//    struct unicast_message msg_recv;
-//    // Imprimir el Beacon Recibido apunta a donde esta guardado el packet
-//   void *msg= packetbuf_dataptr();
-//    // ya tengo el mensaje que debo retransmitir
-//    msg_recv=*((struct unicast_message*)msg);//
-//
-//    printf("unicast received payload %s %d.%d\n",
-//  	 msg_recv.msg,msg_recv.id.u8[0], msg_recv.id.u8[1]);
-//
-//    // Defino el mensaje que se meterá en la lista
-//     struct u_retransmit_msg *msg_retransmit;
-//     // si no soy el nodo 1 debo retransmitir
-//     if(linkaddr_node_addr.u8[0]!=1){
-//       printf("Retrnasmitir\n");
-//       //Defino que la variable p será un padre posible
-//       for(msg_retransmit = list_head(u_retransmit_msg_list); msg_retransmit != NULL; msg_retransmit = list_item_next(msg_retransmit)) {
-//         //if(linkaddr_cmp(&msg_retransmit->id, &msg_recv.id )) {
-//         if(msg_retransmit->id.u8[0]== msg_recv.id.u8[0]){
-//           // Si encontramos mensaje de ese mismo nodo no lo guardamos, quiere decir que
-//           // aun no lo ha retransmitido
-//           printf("Este nodo ya envio pero no hemos retransmitido \n");
-//           break;
-//         }
-//       }
-//       if(msg_retransmit == NULL) {
-//         msg_retransmit = memb_alloc(&u_retransmit_memb);
-//         /* If we could not allocate a new neighbor entry, we give up. We
-//           could have reused an old neighbor entry, but we do not do this
-//            for now. */
-//         if(msg_retransmit == NULL) {
-//           return;
-//         }
-//         msg_retransmit->id=msg_recv.id;
-//         //linkaddr_copy(&msg_retransmit->id, &msg_recv.id);// Guardar en msg_retransmit el nuevo id para la entrada
-//         msg_retransmit->msg =msg_recv.msg;
-//         list_add(u_retransmit_msg_list, msg_retransmit);
-//         printf("Mensaje Agregado a la lista \n");
-//
-//     }
-//    }
-//  }
+static void
+recv_uc(struct unicast_conn *c, const linkaddr_t *from)
+ {
+
+   struct unicast_message msg_recv;
+   // Imprimir el Beacon Recibido apunta a donde esta guardado el packet
+  void *msg= packetbuf_dataptr();
+   // ya tengo el mensaje que debo retransmitir
+   msg_recv=*((struct unicast_message*)msg);//
+
+   printf("unicast received payload %s %d.%d\n",
+ 	 msg_recv.msg,msg_recv.id.u8[0], msg_recv.id.u8[1]);
+
+   // Defino el mensaje que se meterá en la lista
+    struct u_retransmit_msg *msg_retransmit;
+    // si no soy el nodo 1 debo retransmitir
+    if(linkaddr_node_addr.u8[0]!=1){
+      printf("Retrnasmitir\n");
+      //Defino que la variable p será un padre posible
+      for(msg_retransmit = list_head(u_retransmit_msg_list); msg_retransmit != NULL; msg_retransmit = list_item_next(msg_retransmit)) {
+        //if(linkaddr_cmp(&msg_retransmit->id, &msg_recv.id )) {
+        if(msg_retransmit->id.u8[0]== msg_recv.id.u8[0]){
+          // Si encontramos mensaje de ese mismo nodo no lo guardamos, quiere decir que
+          // aun no lo ha retransmitido
+          printf("Este nodo ya envio pero no hemos retransmitido \n");
+          break;
+        }
+      }
+      if(msg_retransmit == NULL) {
+        msg_retransmit = memb_alloc(&u_retransmit_memb);
+        /* If we could not allocate a new neighbor entry, we give up. We
+          could have reused an old neighbor entry, but we do not do this
+           for now. */
+        if(msg_retransmit == NULL) {
+          return;
+        }
+        msg_retransmit->id=msg_recv.id;
+        //linkaddr_copy(&msg_retransmit->id, &msg_recv.id);// Guardar en msg_retransmit el nuevo id para la entrada
+        msg_retransmit->id.u8[0]=msg_recv.id.u8[0];
+        msg_retransmit->id.u8[1]=msg_recv.id.u8[1];
+        msg_retransmit->msg=msg_recv.msg;
+        list_add(u_retransmit_msg_list, msg_retransmit);
+        printf("Mensaje Agregado a la lista \n");
+
+    }
+   }
+ }
 /*---------------------------------------------------------------------------*/
- // static void
- // sent_uc(struct unicast_conn *c, int status, int num_tx)
- // {
- //   const linkaddr_t *dest = packetbuf_addr(PACKETBUF_ADDR_RECEIVER);
- //   //if(linkaddr_cmp(dest, &linkaddr_null)) {
- //   if(dest!= NULL){
- //     return;
- //   }
- //   printf("unicast message sent to %d.%d: \n",
- //     dest->u8[0], dest->u8[1]);
- //  }
+ static void
+ sent_uc(struct unicast_conn *c, int status, int num_tx)
+ {
+   const linkaddr_t *dest = packetbuf_addr(PACKETBUF_ADDR_RECEIVER);
+   //if(linkaddr_cmp(dest, &linkaddr_null)) {
+   if(dest!= NULL){
+     return;
+   }
+   printf("unicast message sent to %d.%d: \n",
+     dest->u8[0], dest->u8[1]);
+  }
 
 
 //Para unicast
-//static const struct unicast_callbacks unicast_callbacks = {recv_uc, sent_uc};
-//static struct unicast_conn uc;
+static const struct unicast_callbacks unicast_callbacks = {recv_uc, sent_uc};
+static struct unicast_conn uc;
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
@@ -357,50 +357,50 @@ PROCESS_THREAD(select_parent,ev,data)
 //Proceso para enviar unicast
 
 /*---------------------------------------------------------------------------*/
-// PROCESS_THREAD(unicast_msg, ev, data)
-// {
-//   PROCESS_EXITHANDLER(unicast_close(&uc);)
-//
-//   PROCESS_BEGIN();
-//
-//   unicast_open(&uc, 146, &unicast_callbacks);
-//
-//   while(1) {
-//     static struct etimer et;
-//
-//
-//     etimer_set(&et, CLOCK_SECOND * 5 + random_rand() % (CLOCK_SECOND * 5));
-//
-//     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-//     fill_unicast_msg(&u_msg,linkaddr_node_addr);
-//
-//     packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
-//
-//     if(linkaddr_node_addr.u8[0]!=1) {
-//       unicast_send(&uc, &n.preferred_parent);
-//       // Aqui tambien recorro la lista de mensajes de unicast y conforme envìo elimino
-//       // Defino el mensaje que se meterá en la lista
-//       struct unicast_message aux_msg;
-//       struct u_retransmit_msg *msg_retransmit;
-//       for(msg_retransmit = list_head(u_retransmit_msg_list); msg_retransmit != NULL; msg_retransmit = list_item_next(msg_retransmit)) {
-//
-//
-//         printf("la longitud de la lista es : %d \n",list_length(u_retransmit_msg_list));
-//         aux_msg.id=msg_retransmit->id;
-//         aux_msg.msg=msg_retransmit->msg;
-//         printf("Retransmitir ID: %d \n", msg_retransmit->id.u8[0]);
-//         fill_unicast_msg(&aux_msg,aux_msg.id);
-//         packetbuf_copyfrom(&aux_msg, sizeof(struct unicast_message));
-//         unicast_send(&uc, &n.preferred_parent);
-//         // Remover de la lista cada que voy enviando
-//         list_remove(u_retransmit_msg_list,msg_retransmit);
-//         //Liberar memoria
-//         memb_free(&u_retransmit_memb,&msg_retransmit);
-//       }
-//     }
-//
-//   }
-//
-//   PROCESS_END();
-// }
+PROCESS_THREAD(unicast_msg, ev, data)
+{
+  PROCESS_EXITHANDLER(unicast_close(&uc);)
+
+  PROCESS_BEGIN();
+
+  unicast_open(&uc, 146, &unicast_callbacks);
+
+  while(1) {
+    static struct etimer et;
+
+
+    etimer_set(&et, CLOCK_SECOND * 5 + random_rand() % (CLOCK_SECOND * 5));
+
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+    fill_unicast_msg(&u_msg,linkaddr_node_addr);
+
+    packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
+
+    if(linkaddr_node_addr.u8[0]!=1) {
+      unicast_send(&uc, &n.preferred_parent);
+      // Aqui tambien recorro la lista de mensajes de unicast y conforme envìo elimino
+      // Defino el mensaje que se meterá en la lista
+      struct unicast_message aux_msg;
+      struct u_retransmit_msg *msg_retransmit;
+      for(msg_retransmit = list_head(u_retransmit_msg_list); msg_retransmit != NULL; msg_retransmit = list_item_next(msg_retransmit)) {
+
+
+        printf("la longitud de la lista es : %d \n",list_length(u_retransmit_msg_list));
+        aux_msg.id=msg_retransmit->id;
+        aux_msg.msg=msg_retransmit->msg;
+        printf("Retransmitir ID: %d \n", msg_retransmit->id.u8[0]);
+        fill_unicast_msg(&aux_msg,aux_msg.id);
+        packetbuf_copyfrom(&aux_msg, sizeof(struct unicast_message));
+        unicast_send(&uc, &n.preferred_parent);
+        // Remover de la lista cada que voy enviando
+        list_remove(u_retransmit_msg_list,msg_retransmit);
+        //Liberar memoria
+        memb_free(&u_retransmit_memb,&msg_retransmit);
+      }
+    }
+
+  }
+
+  PROCESS_END();
+}
 /*---------------------------------------------------------------------------*/
