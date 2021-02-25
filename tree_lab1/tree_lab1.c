@@ -156,8 +156,8 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
   // ya tengo el mensaje que debo retransmitir
   msg_recv=*((struct unicast_message*)msg);//
 
-  printf("unicast message received from %d.%d payload %s\n",
-	 msg_recv.id.u8[0], msg_recv.id.u8[1],msg_recv.msg);
+  printf("unicast received payload %s %d.%d\n",
+	 msg_recv.msg,msg_recv.id.u8[0], msg_recv.id.u8[1]);
 
    // Defino el mensaje que se meterá en la lista
    struct u_retransmit_msg *msg_retransmit;
@@ -240,7 +240,7 @@ PROCESS_THREAD(send_beacon, ev, data)
 
     packetbuf_copyfrom(&b, sizeof(struct beacon));
     broadcast_send(&broadcast);
-    printf("broadcast message sent\n");
+    printf("broadcast message sent with %d\n",n.rssi_c);
   }
 
   PROCESS_END();

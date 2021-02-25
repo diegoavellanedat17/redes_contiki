@@ -32,58 +32,28 @@
 
 /**
  * \file
- *         Testing the broadcast layer in Rime
+ *         Construccion Arbol
  * \author
- *         Adam Dunkels <adam@sics.se>
+ *         Diego Avellaneda
  */
+// Librerias
+#include <construccion_arbol.h>
+ // llenar el beacon con la informacion
+ void fill_beacon_msg(struct beacon *b,linkaddr_t id,signed int rssi_c){
 
-#include "contiki.h"
-#include "net/rime/rime.h"
-#include "random.h"
+   //Link Address copy copia del segundo argumento en el primer once
+   linkaddr_copy(&b->id,&id);
+   //b->id=id;
+   b->rssi_c=rssi_c;
+ }
 
-#include "dev/button-sensor.h"
+ // llenar el mensaje de unicast con la informacion
+ void fill_unicast_msg(struct unicast_message *unicast_msg,linkaddr_t id){
+   char str_aux[20];
+   strcpy(str_aux,"I am");
+   //strcpy(str_aux,(char *)id.u8[0]);
+   unicast_msg->msg="I am ";
+   //Link Address copy copia del segundo argumento en el primer once
+   linkaddr_copy(&unicast_msg->id,&id);
 
-#include "dev/leds.h"
-
-#include <stdio.h>
-/*---------------------------------------------------------------------------*/
-PROCESS(example_broadcast_process, "Broadcast example");
-AUTOSTART_PROCESSES(&example_broadcast_process);
-/*---------------------------------------------------------------------------*/
-static void
-broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
-{
-  uint16_t rssi=packetbuf_attr(PACKETBUF_ATTR_RSSI);
-  int rssi_cas= (int16_t) rssi;
-  printf("broadcast message received from %d.%d: '%s' con rssis %d \n",
-         from->u8[0], from->u8[1], (char *)packetbuf_dataptr(), rssi_cas);
-
-}
-static const struct broadcast_callbacks broadcast_call = {broadcast_recv};
-static struct broadcast_conn broadcast;
-/*---------------------------------------------------------------------------*/
-PROCESS_THREAD(example_broadcast_process, ev, data)
-{
-  static struct etimer et;
-
-  PROCESS_EXITHANDLER(broadcast_close(&broadcast);)
-
-  PROCESS_BEGIN();
-
-  broadcast_open(&broadcast, 129, &broadcast_call);
-
-  while(1) {
-
-    /* Delay 2-4 seconds */
-    etimer_set(&et, CLOCK_SECOND * 4 + random_rand() % (CLOCK_SECOND * 4));
-
-    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-
-    packetbuf_copyfrom("Hello", 6);
-    broadcast_send(&broadcast);
-    printf("broadcast message sent\n");
-  }
-
-  PROCESS_END();
-}
-/*---------------------------------------------------------------------------*/
+ }
