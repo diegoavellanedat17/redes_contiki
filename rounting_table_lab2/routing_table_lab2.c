@@ -2,14 +2,15 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-
+// Estructura del nodo, se tiene un id, apuntadores al sibling y se child
 struct node {
     int id;
     struct node *sibling;
     struct node *child;
 };
 
-// Esta corresponde la esructura de la lista
+// Esta corresponde la esructura de la lista, tiene las mismas caracteristicas
+// de los nodos pero tiene un apuntador al siguiente elemento de la lista
 struct LinkedList{
     int id;
     struct node *sibling;
@@ -17,10 +18,12 @@ struct LinkedList{
     struct LinkedList *next;
 };
 
+//Se define el item de la linked list
 typedef struct LinkedList *item; //Define node as pointer of id type struct LinkedList
-
+//Se define el elemento nodo
 typedef struct node node;
 
+//Definicion de las funciones que se encuentran despues del main
 node * new_node(int);
 node * add_sibling(node *, int);
 node * add_child(node *, int);
@@ -50,13 +53,16 @@ int main(int argc, char *argv[])
     node *nine= add_child(five,9);
 
 
-    //Crear una lista
+    // Se define el primer elemento de cada una de las listas
+
     item list_backtrace=NULL;
     item list_visited=NULL;
 
+    //Función para imprimir la tabla de enrutamiento del nodo en cuestion
     print_childs(root,list_backtrace,list_visited);
-    int a = search_forwarder(root,list_backtrace,list_visited,5);
-    printf("El que debe reenviar es %i\n",a );
+    // Funcion que retorna a que nodo se debe enviar el msg de unicast
+    int rtx_to = search_forwarder(two,list_backtrace,list_visited,7);
+    printf("El que debe reenviar es %i\n",rtx_to);
 }
 
 node * new_node(int id)
@@ -100,17 +106,17 @@ int search_forwarder(node * n, item list_backtrace,item list_visited, int id_nod
   node *next_node;
 
   if(current_node->id == id_node){
-    printf("-----------------------------Este es que hago?\n" );
+    //printf("-----------------------------Este es que hago?\n" );
     if(list_backtrace==NULL)
       return 0;
     else{
 
       if(list_backtrace->next == NULL){
-        printf("Lo debe enviar el %i \n", list_backtrace->id);
+        //printf("Lo debe enviar el %i \n", list_backtrace->id);
         return list_backtrace->id;
       }
       else{
-        printf("lo debe enviar %i \n", list_backtrace->next->id);
+        //printf("lo debe enviar %i \n", list_backtrace->next->id);
         return list_backtrace->next->id;
       }
 
@@ -121,7 +127,7 @@ int search_forwarder(node * n, item list_backtrace,item list_visited, int id_nod
 
   if(list_visited!=NULL){
     if(list_visited->id==current_node->id){
-      printf("estamos en el final\n");
+      //printf("estamos en el final\n");
       return 0;
     }
   }
@@ -129,23 +135,23 @@ int search_forwarder(node * n, item list_backtrace,item list_visited, int id_nod
   // Verificar si el nodo tiene hijo
   if(current_node -> child !=NULL){
     // Agregar el current node a la lista
-    printf("el nodo %i si tiene hijo\n",current_node -> id);
+    //printf("el nodo %i si tiene hijo\n",current_node -> id);
     //Verificar si el hijo ya aparece en la lista de visitados
     bool found_in_visited= is_node_in_list(list_visited,current_node->child);
 
     if(!found_in_visited){
-      printf("El nodo %i no ha sido visitado\n",current_node->child->id );
+      //printf("El nodo %i no ha sido visitado\n",current_node->child->id );
       //Guardar el current en backtrace por que acá tendremos que volver
       list_backtrace=add_node_list(list_backtrace, current_node);
       //Definir que el siguiente nodo al que iremos será al hijo
       next_node=current_node->child;
     }
     else{
-      printf("Este nodo ya fue visitado evaluar los hermanos \n" );
+      //printf("Este nodo ya fue visitado evaluar los hermanos \n" );
       if(current_node -> sibling !=NULL)
         next_node=current_node->sibling;
       else{
-        printf("Devolvernos al nodo %i\n",tail(list_backtrace)->id );
+        //printf("Devolvernos al nodo %i\n",tail(list_backtrace)->id );
         next_node=from_item_to_node(tail(list_backtrace));
         remove_last_item(list_backtrace);
       }
@@ -154,17 +160,17 @@ int search_forwarder(node * n, item list_backtrace,item list_visited, int id_nod
 
   }
   else if (current_node -> sibling !=NULL){
-    printf("el nodo %i si tiene hermanos\n",current_node->id);
+    //printf("el nodo %i si tiene hermanos\n",current_node->id);
     bool found_in_visited= is_node_in_list(list_visited,current_node->sibling);
     // Si no encuentra el nodo hermano
     if(!found_in_visited)
         next_node=current_node->sibling;
   }
   else{
-    printf("el nodo %i no tiene ni hijos ni hermanos\n",current_node->id);
+    //printf("el nodo %i no tiene ni hijos ni hermanos\n",current_node->id);
     //Aca debemos devolvernos en el backtrace
     // entonces le miramos la cola al backtrace
-    printf("Devolvernos al nodo %i\n",tail(list_backtrace)->id );
+    //printf("Devolvernos al nodo %i\n",tail(list_backtrace)->id );
     next_node=from_item_to_node(tail(list_backtrace));
     //borramos la cola de la lista
     remove_last_item(list_backtrace);
@@ -177,11 +183,11 @@ int search_forwarder(node * n, item list_backtrace,item list_visited, int id_nod
   if (!guardado)
     list_visited=add_node_list(list_visited, current_node);
 
-  printf("El backtrace es: \n" );
-  print_list(list_backtrace);
+  //printf("El backtrace es: \n" );
+  //print_list(list_backtrace);
 
-  printf("Los visitados son : \n" );
-  print_list(list_visited);
+  //printf("Los visitados son : \n" );
+  //print_list(list_visited);
 
   search_forwarder(next_node,list_backtrace,list_visited,id_node);
 
@@ -194,7 +200,15 @@ void print_childs(node * n, item list_backtrace,item list_visited){
 
   if(list_visited!=NULL){
     if(list_visited->id==current_node->id){
-      printf("estamos en el final\n");
+      printf("La tabla de enrutamiento del nodo %i es : \n", current_node->id);
+      print_list(list_visited);
+      // Descomentar esto si el profesor pide que muestre hermanos del nodo a imprimir
+
+      // while(current_node->sibling !=NULL){
+      //   printf("los datos son %i \n",current_node->sibling->id);
+      //   current_node =current_node->sibling;
+      // }
+
       return;
     }
   }
@@ -202,23 +216,23 @@ void print_childs(node * n, item list_backtrace,item list_visited){
   // Verificar si el nodo tiene hijo
   if(current_node -> child !=NULL){
     // Agregar el current node a la lista
-    printf("el nodo %i si tiene hijo\n",current_node -> id);
+    //printf("el nodo %i si tiene hijo\n",current_node -> id);
     //Verificar si el hijo ya aparece en la lista de visitados
     bool found_in_visited= is_node_in_list(list_visited,current_node->child);
 
     if(!found_in_visited){
-      printf("El nodo %i no ha sido visitado\n",current_node->child->id );
+      //printf("El nodo %i no ha sido visitado\n",current_node->child->id );
       //Guardar el current en backtrace por que acá tendremos que volver
       list_backtrace=add_node_list(list_backtrace, current_node);
       //Definir que el siguiente nodo al que iremos será al hijo
       next_node=current_node->child;
     }
     else{
-      printf("Este nodo ya fue visitado evaluar los hermanos \n" );
+      //printf("Este nodo ya fue visitado evaluar los hermanos \n" );
       if(current_node -> sibling !=NULL)
         next_node=current_node->sibling;
       else{
-        printf("Devolvernos al nodo %i\n",tail(list_backtrace)->id );
+        //printf("Devolvernos al nodo %i\n",tail(list_backtrace)->id );
         next_node=from_item_to_node(tail(list_backtrace));
         remove_last_item(list_backtrace);
       }
@@ -227,17 +241,17 @@ void print_childs(node * n, item list_backtrace,item list_visited){
 
   }
   else if (current_node -> sibling !=NULL){
-    printf("el nodo %i si tiene hermanos\n",current_node->id);
+    //printf("el nodo %i si tiene hermanos\n",current_node->id);
     bool found_in_visited= is_node_in_list(list_visited,current_node->sibling);
     // Si no encuentra el nodo hermano
     if(!found_in_visited)
         next_node=current_node->sibling;
   }
   else{
-    printf("el nodo %i no tiene ni hijos ni hermanos\n",current_node->id);
+    //printf("el nodo %i no tiene ni hijos ni hermanos\n",current_node->id);
     //Aca debemos devolvernos en el backtrace
     // entonces le miramos la cola al backtrace
-    printf("Devolvernos al nodo %i\n",tail(list_backtrace)->id );
+    //printf("Devolvernos al nodo %i\n",tail(list_backtrace)->id );
     next_node=from_item_to_node(tail(list_backtrace));
     //borramos la cola de la lista
     remove_last_item(list_backtrace);
@@ -250,16 +264,15 @@ void print_childs(node * n, item list_backtrace,item list_visited){
   if (!guardado)
     list_visited=add_node_list(list_visited, current_node);
 
-  printf("El backtrace es: \n" );
-  print_list(list_backtrace);
+  //printf("El backtrace es: \n" );
+  //print_list(list_backtrace);
 
-  printf("Los visitados son : \n" );
-  print_list(list_visited);
+  //printf("Los visitados son : \n" );
+  //print_list(list_visited);
 
   print_childs(next_node,list_backtrace,list_visited);
 
 }
-
 
 //Crear un item
 item createitem(){
@@ -268,7 +281,6 @@ item createitem(){
      temp->next = NULL;// make next point to NULL
      return temp;//return the new item
  }
-
 
 item add_node_list(item list_pointer, node *n){
 
