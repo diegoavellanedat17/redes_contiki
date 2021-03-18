@@ -39,6 +39,7 @@ int search_forwarder(node * n, item list_backtrace,item list_visited, int id_nod
 
 
 
+
 int main(int argc, char *argv[])
 {
     int i;
@@ -51,6 +52,9 @@ int main(int argc, char *argv[])
     node *seven= add_child(tree,7);
     node *eight= add_child(five,8);
     node *nine= add_child(five,9);
+    node *ten= add_child(five,10);
+
+
 
 
     // Se define el primer elemento de cada una de las listas
@@ -63,6 +67,10 @@ int main(int argc, char *argv[])
     // Funcion que retorna a que nodo se debe enviar el msg de unicast
     int rtx_to = search_forwarder(two,list_backtrace,list_visited,7);
     printf("El que debe reenviar es %i\n",rtx_to);
+
+    node *nine_again= add_child(five,9);
+    //Función para imprimir la tabla de enrutamiento del nodo en cuestion
+    print_childs(root,list_backtrace,list_visited);
 }
 
 node * new_node(int id)
@@ -92,13 +100,55 @@ node * add_sibling(node * n, int id)
 
 node * add_child(node * n, int id)
 {
+
+
     if ( n == NULL )
         return NULL;
+    // Acà se va a validar si existe el nodo el los hijos
 
-    if ( n->child )
+    if ( n->child ){
+      //si existe el hijo, verificar si es igual al id entrante
+      if (n->child->id == id){
+        printf("Tiene el mismo ID el hijo directo\n");
+        // Agregarlo como nuevo nodo, haciendo que el papa apunte a este, y que si el hermano era diferente de null
+        // el sibling apunte al el
+        node * n_previous_child=n->child;// Guardar la información temporal del anterior hijo
+        n->child = new_node(id);// Asignar el hijo a un nuevo nodo con el mismo id
+        n->child->sibling=n_previous_child->sibling;// Como en teoria viene con su tabla de enrutamiento el nuevo paquete
+        //No hay necesidad de agregar los hijos anteriores
+        return n->child;
+      }
+
+      else{
+        // Verificar si es igual a un hermano
+        node *node_child=n->child;
+        while (node_child->sibling){
+
+          if(node_child->sibling->id==id){
+            printf("Tiene el mismo ID un hermano de %i\n", node_child->id);
+            // si dentro de los hermanos hay un nodo llamado igual, hacer que el anterior apunte a este ahora y que este apunto al heramano del que va a reemplazar
+            node * n_previous_sibling=node_child->sibling;// guardo la informacion del nodo que voy a retirar
+            node_child->sibling=new_node(id);//este ahora serà un nuevo nodo y el anterior ahora apunta acá
+            // El hermano de este ahora apunta aca
+            node_child->sibling->sibling=n_previous_sibling->sibling;
+            return node_child->sibling;
+          }
+
+          node_child = node_child->sibling;
+        }
+        // Si llegue aca es por que entre los hermanos no hay un nodo llamado igual
+        printf("Tiene hijos pero ninguno repetido\n");
         return add_sibling(n->child, id);
-    else
-        return (n->child = new_node(id));
+
+      }
+
+    }
+
+    else{
+      printf("No tiene hijos agrega normal \n");
+      return (n->child = new_node(id));
+    }
+
 }
 
 int search_forwarder(node * n, item list_backtrace,item list_visited, int id_node){
