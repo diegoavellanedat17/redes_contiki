@@ -48,7 +48,7 @@
 // Librerias propias
 #include <construccion_arbol.h>
 
-#define REMOTE 0
+#define REMOTE 1
 
 
 

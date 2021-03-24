@@ -44,15 +44,25 @@ int main(int argc, char *argv[])
 {
     int i;
     node *root = new_node(1);
-    node *two= add_child(root,2);
-    node *tree= add_child(root,3);
-    node *four= add_child(root,4);
-    node *five= add_child(two,5);
-    node *six= add_child(tree,6);
-    node *seven= add_child(tree,7);
-    node *eight= add_child(five,8);
-    node *nine= add_child(five,9);
-    node *ten= add_child(five,10);
+    node *dos= add_child(root,2);
+    node *tres= add_child(root,3);
+    node *dieciocho= add_child(root,18);
+    node *cuatro= add_child(dos,4);
+    node *cinco= add_child(dos,5);
+    node *seis= add_child(dos,6);
+    node *siete= add_child(dos,7);
+    node *ocho= add_child(tres,8);
+    node *nueve= add_child(dieciocho,9);
+    node *diez= add_child(dieciocho,10);
+    node *once= add_child(dieciocho,11);
+    node *doce= add_child(dieciocho,12);
+    node *trece= add_child(cuatro,13);
+    node *catorce= add_child(cuatro,14);
+    node *quince= add_child(doce,15);
+    node *dieciseis= add_child(doce,16);
+    node *diecisiete= add_child(dieciseis,17);
+
+
 
 
 
@@ -65,8 +75,16 @@ int main(int argc, char *argv[])
     //Función para imprimir la tabla de enrutamiento del nodo en cuestion
     print_childs(root,list_backtrace,list_visited);
     // Funcion que retorna a que nodo se debe enviar el msg de unicast
-    int rtx_to = search_forwarder(two,list_backtrace,list_visited,2);
-    printf("El que debe reenviar es %i\n",rtx_to);
+    int caso1 = search_forwarder(root,list_backtrace,list_visited,17);
+    int caso2 = search_forwarder(root,list_backtrace,list_visited,13);
+    int caso3 = search_forwarder(dieciocho,list_backtrace,list_visited,15);
+    int caso4 = search_forwarder(root,list_backtrace,list_visited,18);
+    int caso5 = search_forwarder(root,list_backtrace,list_visited,20);
+    printf("El que debe reenviar en caso 1 es:  %i\n",caso1);
+    printf("El que debe reenviar en caso 2 es:  %i\n",caso2);
+    printf("El que debe reenviar en caso 3 es:  %i\n",caso3);
+    printf("El que debe reenviar en caso 4 es:  %i\n",caso4);
+    printf("El que debe reenviar en caso 5 es:  %i\n",caso5);
 
 }
 
