@@ -45,11 +45,11 @@
 #include "dev/leds.h"
 #include "net/netstack.h"
 #include <stdio.h>
+#include <stdbool.h>
 // Librerias propias
 #include <construccion_arbol.h>
 
 #define REMOTE 1
-
 
 
 //LIberia del radio
@@ -62,9 +62,6 @@ PROCESS(send_beacon, "Envia Beacons Periodicamente");
 // Crear Procesos de Unicast
 PROCESS(unicast_msg, "Mensajes de Unicast");
 AUTOSTART_PROCESSES(&send_beacon,&select_parent,&unicast_msg);
-//AUTOSTART_PROCESSES(&send_beacon,&select_parent);
-
-/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /* En MEMB definimos un espacio de memoria en el cual se almacenará la lista  */
@@ -94,16 +91,19 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   linkaddr_t b_rec_id = b_recv.id;
 
   // Sacar el RSSI del enlace y aca ya tengo el rssi total
-
-  uint16_t rssi_link=packetbuf_attr(PACKETBUF_ATTR_RSSI);
+  //Problema entendido si debo recibirlo como uint_16
+  uint16_t rssi_link_uint16=packetbuf_attr(PACKETBUF_ATTR_RSSI);
+  int rssi_link=signExtension(rssi_link_uint16);
   //signed int rssi_link=-80;
-  signed int rssi_total=b_rec_rssi_c+rssi_link;
-  int b_rec_rssi_c_int= (int16_t) b_rec_rssi_c;
-  // Imprimo lo que recibo y luego lo meto en una lista
-  printf("broadcast message received from %d with rssi_c = %d\n",b_rec_id.u8[0],b_rec_rssi_c_int);
+
+
+  signed int rssi_total=b_rec_rssi_c+ rssi_link;
+
+  printf("broadcast message received from %d with rssi_c = %d\n",b_rec_id.u8[0],rssi_total);
 
   // // Si soy el nodo root no tengo que hacer ninguna lista
   if (linkaddr_node_addr.u8[0]!=1) {
+
 
   //Defino que la variable p será un padre posible
     struct possible_parent *p;
@@ -116,18 +116,15 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   //   /* La idea es que si encuentra un paren con ese mismo id le cambie el rssi en la lista */
   //
      //if(linkaddr_cmp(&p->id, &b_rec_id )) {
-     if(p->id.u8[0]==b_rec_id.u8[0]){
-       int rssi_int= (int16_t) p->rssi_c;
-       printf("Este nodo ya estaba el la T.P:C con rssi %d\n",rssi_int);
-       // Hare un update del RSSI
-
+     if(p->id.u8[0]==b_rec_id.u8[0] && p->id.u8[1]==b_rec_id.u8[1]){
        p->rssi_c=rssi_total;
-       int rssi_total_int=(int16_t) p->rssi_c;
-       printf("RSSI Actualizado en la lista a: %d\n",rssi_total_int);
-       break;
+       process_post(&select_parent,PROCESS_EVENT_CONTINUE,NULL);
+       return;
      }
 
+
   }
+
   // // Si N es NULL quiere decir que Recorrio toda la lista y no encontro a nadie con el mismo ID
   // /* If n is NULL, this neighbor was not found in our list, and we
   //    allocate a new struct neighbor from the neighbors_memb memory
@@ -145,7 +142,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
      //linkaddr_copy(&p->id, &b_rec_id);// Guardar en p el nuevo id para la entrada
      p->id.u8[0]=b_rec_id.u8[0];
      p->id.u8[1]=b_rec_id.u8[1];
-     p->rssi_c =b_rec_rssi_c;
+     p->rssi_c =rssi_total;
      list_add(possible_parents_list, p);
    }
   //
@@ -269,10 +266,12 @@ PROCESS_THREAD(send_beacon, ev, data)
 
   broadcast_open(&broadcast, 129, &broadcast_call);
   if (linkaddr_node_addr.u8[0]==1) {
+
     n.rssi_c=0;
   }
   else{
     n.rssi_c = INF_NEG ;
+
   }
 
   while(1) {
@@ -283,11 +282,10 @@ PROCESS_THREAD(send_beacon, ev, data)
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 
     fill_beacon_msg(&b,linkaddr_node_addr,n.rssi_c);
-
     packetbuf_copyfrom(&b, sizeof(struct beacon));
     broadcast_send(&broadcast);
-    int n_rssi_c_int=(int16_t) n.rssi_c;
-      printf("broadcast message sent with %d\n",n_rssi_c_int);
+
+    printf("broadcast message sent with %i\n",n.rssi_c);
   }
 
   PROCESS_END();
@@ -308,41 +306,47 @@ PROCESS_THREAD(select_parent,ev,data)
 
   while(1) {
     // este evento corre cuando le llega un evento a este proceso
+
+    static signed int rssi_selected;
+
     PROCESS_YIELD();// cede el procesador hasta que llegue un evento
+
       if(ev== PROCESS_EVENT_CONTINUE){
-      //Recorrer la tabla de rssi totales y escoger el menor
+        //Recorrer la tabla de rssi totales y escoger el menor
 
-      // Recorrer la lista y ver los valores de RSSI
-      struct possible_parent *p;
-      struct possible_parent *p_header;
-      // Asigno el rssi seleccionado a la cabeza de la lista
+        // Recorrer la lista y ver los valores de RSSI
+        struct possible_parent *p;
+        struct possible_parent *p_header;
+        // Asigno el rssi seleccionado a la cabeza de la lista
 
-      signed int rssi_selected;
+        p_header=list_head(possible_parents_list);
+        if (p_header !=NULL){
+          rssi_selected=p_header->rssi_c;
 
-      p_header=list_head(possible_parents_list);
-      if (p_header !=NULL){
-        rssi_selected=p_header->rssi_c;
+        for(p = list_head(possible_parents_list); p != NULL; p = list_item_next(p)) {
 
-      for(p = list_head(possible_parents_list); p != NULL; p = list_item_next(p)) {
+        /* Recorro la lista competa y voy imprimiendo los valores de rssi */
+        if(p->rssi_c >= rssi_selected ){
+            selected_parent=p;
 
-      /* Recorro la lista competa y voy imprimiendo los valores de rssi */
-      if(p->rssi_c >= rssi_selected ){
-          selected_parent=p;
-          rssi_selected=p->rssi_c;
+            rssi_selected=p->rssi_c;
+          }
+
         }
 
-      }
+                printf("Padre seleccionado %d\n", selected_parent->id.u8[0] );
+                // Actualizar el rssi que voy a empezar a divulgar
+                n.rssi_c=rssi_selected;
 
-              printf("Padre seleccionado %d\n", selected_parent->id.u8[0] );
-              // Actualizar el rssi que voy a empezar a divulgar
-              n.rssi_c=selected_parent->rssi_c;
-              printf("#L %d 0\n", n.preferred_parent.u8[0]);
-              //linkaddr_copy(&n.preferred_parent,&selected_parent->id);
-              n.preferred_parent.u8[0]=selected_parent->id.u8[0];
-              n.preferred_parent.u8[1]=selected_parent->id.u8[1];
-              printf("#L %d 1\n", n.preferred_parent.u8[0]);
 
-      }
+                printf("#L %d 0\n", n.preferred_parent.u8[0]);
+                //linkaddr_copy(&n.preferred_parent,&selected_parent->id);
+                n.preferred_parent.u8[0]=selected_parent->id.u8[0];
+                n.preferred_parent.u8[1]=selected_parent->id.u8[1];
+                printf("#L %d 1\n", n.preferred_parent.u8[0]);
+
+
+        }
 
 
 

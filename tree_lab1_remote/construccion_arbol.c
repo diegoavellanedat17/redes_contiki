@@ -57,3 +57,13 @@
    linkaddr_copy(&unicast_msg->id,&id);
 
  }
+
+ signed int signExtension (uint16_t rssi){
+   //Esta funcion extiende la cantidad de bits para las operaciones
+   int value=(0x0000FFFF & rssi);
+   int mask = 0X00008000;
+   if(mask & rssi){
+     value += 0xFFFF0000;
+   }
+   return value;
+ }

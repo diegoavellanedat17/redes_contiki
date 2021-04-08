@@ -57,11 +57,13 @@ struct u_retransmit_msg {
 };
 // Asignacion de estructura
 struct beacon b;
-struct node n;
-struct possible_parent *selected_parent;
+static struct node n;
+static struct possible_parent *selected_parent;
+
 
 struct unicast_message u_msg;
 //static struct unicast_conn msg_unicast;
 // llenar el beacon con la informacion
 void fill_beacon_msg (struct beacon *b,linkaddr_t id,signed int rssi_c);
 void fill_unicast_msg(struct unicast_message *unicast_msg,linkaddr_t id);
+signed int signExtension (uint16_t rssi);

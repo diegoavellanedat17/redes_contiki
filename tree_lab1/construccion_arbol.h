@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 
-#define INF_NEG -9999
+#define INF_NEG -999
 // El maximo en la tabla de padres candidatos podemos considerar un remove o un update
 #define MAX_PARENTS 30
 // El maximo de Unicast messages para envío
