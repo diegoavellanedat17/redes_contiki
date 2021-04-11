@@ -224,7 +224,7 @@ void print_childs(node * n, item list_backtrace,item list_visited){
 
   node *current_node=n;
   node *next_node;
-  p//rintf("Estoy en el nodo %d\n",current_node->id );
+  //printf("Estoy en el nodo %d\n",current_node->id );
 
 
   if(list_visited!=NULL){
