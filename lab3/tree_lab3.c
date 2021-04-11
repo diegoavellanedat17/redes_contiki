@@ -61,7 +61,10 @@ PROCESS(select_parent, "Selecciona un Padre");
 PROCESS(send_beacon, "Envia Beacons Periodicamente");
 // Crear Procesos de Unicast
 PROCESS(unicast_msg, "Mensajes de Unicast");
-AUTOSTART_PROCESSES(&send_beacon,&select_parent,&unicast_msg);
+// Construir la tabla de enrutamiento del nodo
+PROCESS(build_RT, "Construir la tabla de enrutamiento ");
+
+AUTOSTART_PROCESSES(&send_beacon,&select_parent,&unicast_msg,&build_RT);
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
@@ -70,7 +73,7 @@ MEMB(possible_parent_memb, struct possible_parent, MAX_PARENTS);
 // Se define de tipo lista
 LIST(possible_parents_list);
 /*---------------------------------------------------------------------------*/
-
+bool me_created=false;
 
 /*---------------------------------------------------------------------------*/
 
@@ -155,7 +158,10 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 
   printf("unicast received payload %s %d.%d\n",
 	 msg_recv.msg,msg_recv.id.u8[0], msg_recv.id.u8[1]);
-   // Aca se usarà el add child y esas cosas 
+   // Aca se usarà el add child y esas cosas
+   //Enviar a un proceso en donde se vaya contruyendo la tabla de enrutamiento.
+   process_post(&build_RT,PROCESS_EVENT_CONTINUE,&msg_recv);
+
 }
 /*---------------------------------------------------------------------------*/
 static void
@@ -294,4 +300,34 @@ PROCESS_THREAD(unicast_msg, ev, data)
 
   PROCESS_END();
 }
+
 /*---------------------------------------------------------------------------*/
+//Codigo del proceso Contruir la tabla de enrutamiento
+PROCESS_THREAD(build_RT,ev,data)
+{
+
+  PROCESS_BEGIN();
+  //Lo que esta aca corre una sola vez en toda la vida
+  static node *me_node; //= new_node(5);
+  me_node= new_node(linkaddr_node_addr.u8[0]);
+
+  //printf("Esto corre una sola vez \n");
+  while(1) {
+    // este evento corre cuando le llega un evento a este proceso
+    PROCESS_YIELD();// cede el procesador hasta que llegue un evento
+      if(ev== PROCESS_EVENT_CONTINUE){
+
+        struct unicast_message *msg_recv= data;
+        //printf("unicast received payload UN rt %s %d.%d\n",
+        //msg_recv->msg,msg_recv->id.u8[0], msg_recv->id.u8[1]);
+        add_child(me_node,msg_recv->id.u8[0]);
+        item list_backtrace=NULL;
+        item list_visited=NULL;
+        print_childs(me_node,list_backtrace,list_visited);
+
+    }
+
+  }
+
+  PROCESS_END();
+}

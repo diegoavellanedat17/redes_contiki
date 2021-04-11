@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include "contiki.h"
+#include "net/rime/rime.h"
 
 // Estructura del nodo, se tiene un id, apuntadores al sibling y se child
 struct node {
@@ -22,6 +24,8 @@ struct LinkedList{
 typedef struct LinkedList *item; //Define node as pointer of id type struct LinkedList
 //Se define el elemento nodo
 typedef struct node node;
+
+
 
 //Definicion de las funciones que se encuentran despues del main
 node * new_node(int);
