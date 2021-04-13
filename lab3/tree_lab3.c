@@ -44,8 +44,9 @@
 #include "random.h"
 #include "dev/button-sensor.h"
 #include "dev/leds.h"
-
+#include <string.h>
 #include <stdio.h>
+#include "cfs/cfs.h"
 // Librerias propias
 #include <construccion_arbol.h>
 #include <rt.h>
@@ -296,6 +297,24 @@ PROCESS_THREAD(unicast_msg, ev, data)
 
 
       unicast_send(&uc, &n.preferred_parent);
+      /*        */
+      /* step 3 */
+      /*        */
+      /* reading from cfs */
+      char message[32];
+      char *filename = "msg_file";
+      char buf[100];
+      int fd_read;
+      strcpy(buf,"empty string");
+      fd_read = cfs_open(filename, CFS_READ);
+      if(fd_read!=-1) {
+          cfs_read(fd_read, buf, sizeof(message));
+          printf("step 3: %s\n", buf);
+          cfs_close(fd_read);
+        }
+      else {
+          printf("ERROR: could not read from memory in step 3.\n");
+      }
   }
 
   PROCESS_END();
@@ -321,9 +340,35 @@ PROCESS_THREAD(build_RT,ev,data)
         //printf("unicast received payload UN rt %s %d.%d\n",
         //msg_recv->msg,msg_recv->id.u8[0], msg_recv->id.u8[1]);
         add_child(me_node,msg_recv->id.u8[0]);
-        item list_backtrace=NULL;
-        item list_visited=NULL;
-        print_childs(me_node,list_backtrace,list_visited);
+        //item list_backtrace=NULL;
+        //item list_visited=NULL;
+        //print_childs(me_node,list_backtrace,list_visited);
+
+        // Manejo de archivos en contiki
+        
+        char message[32];
+        char buf[100];
+        strcpy(message,"#1.writing routing t");
+        strcpy(buf,message);
+        printf("step 1: %s\n", buf );
+
+        /* step 2 */
+        /*        */
+        /* writing to cfs */
+        char *filename = "msg_file";
+        int fd_write;
+        int n;
+        fd_write = cfs_open(filename, CFS_WRITE);
+        if(fd_write != -1) {
+          n = cfs_write(fd_write, message, sizeof(message));
+          cfs_close(fd_write);
+          printf("step 2: successfully written to cfs. wrote %i bytes\n", n);
+        } else {
+          printf("ERROR: could not write to memory in step 2.\n");
+        }
+
+
+
 
     }
 
