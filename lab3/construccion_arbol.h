@@ -19,7 +19,7 @@
 //
 /* This is the structure of unicast ping messages. */
 struct unicast_message {
-  char* msg;
+  char *msg;
   linkaddr_t id;
 };
 ////////////////////////////////////
@@ -36,7 +36,7 @@ struct node_info{
 // Estructura posibles padres para la lista
 /* This structure holds information about neighbors. */
 struct possible_parent {
-  
+
   struct possible_parent *next;
   linkaddr_t id;
   signed int rssi_c;
@@ -52,4 +52,4 @@ struct unicast_message u_msg;
 //static struct unicast_conn msg_unicast;
 // llenar el beacon con la informacion
 void fill_beacon_msg (struct beacon *b,linkaddr_t id,signed int rssi_c);
-void fill_unicast_msg(struct unicast_message *unicast_msg,linkaddr_t id);
+void fill_unicast_msg(struct unicast_message *unicast_msg,linkaddr_t id,char *msg);

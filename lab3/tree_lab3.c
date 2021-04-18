@@ -287,16 +287,9 @@ PROCESS_THREAD(unicast_msg, ev, data)
   while(1) {
     static struct etimer et;
 
-
     etimer_set(&et, CLOCK_SECOND * 5 + random_rand() % (CLOCK_SECOND * 5));
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-    fill_unicast_msg(&u_msg,linkaddr_node_addr);
-
-    packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
-
-
-      unicast_send(&uc, &n.preferred_parent);
       /*        */
       /* step 3 */
       /*        */
@@ -304,20 +297,43 @@ PROCESS_THREAD(unicast_msg, ev, data)
       char message[32];
       char *filename = "msg_file";
       char buf[100];
-      int fd_read;
+      int fd_read, fd_write;
+      int n_cfs;
       strcpy(buf,"empty string");
       fd_read = cfs_open(filename, CFS_READ);
       if(fd_read!=-1) {
           cfs_read(fd_read, buf, sizeof(message));
-          printf("step 3: %s\n", buf);
+          //printf("paso 2: se leyo =%s\n", buf);
+          // lo que lee del archivo, llena el unicast para emviarlo
+          fill_unicast_msg(&u_msg,linkaddr_node_addr,buf);
           cfs_close(fd_read);
         }
       else {
-          printf("ERROR: could not read from memory in step 3.\n");
-      }
+          // Aqui solo entra la primera vez, con el objetivo de guardar el propio nodo con )
+          //printf("ERROR: could not read from memory in step 3.\n");
+          //Creo una variable donde se enviarà el unicast por primera vez
+          char  buf_link[10];
+          sprintf(buf_link, "%d", linkaddr_node_addr.u8[0]);
+          strcat(buf_link, ")");
+
+          char *mensaje=buf_link;
+          fd_write = cfs_open(filename, CFS_WRITE);
+
+          if(fd_write != -1) {
+            n_cfs= cfs_write(fd_write, buf_link, sizeof(buf_link));
+            cfs_close(fd_write);
+            //printf("paso 1: Escrito dentro del envio de Unicast con buf_link= %s\n", buf_link);
+            fill_unicast_msg(&u_msg,linkaddr_node_addr,buf_link);
+          } else {
+            printf("No hemos podido escribir en el unicast .\n");
+          }
+
+      packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
+      unicast_send(&uc, &n.preferred_parent);
   }
 
   PROCESS_END();
+}
 }
 
 /*---------------------------------------------------------------------------*/
@@ -337,20 +353,20 @@ PROCESS_THREAD(build_RT,ev,data)
       if(ev== PROCESS_EVENT_CONTINUE){
 
         struct unicast_message *msg_recv= data;
-        //printf("unicast received payload UN rt %s %d.%d\n",
-        //msg_recv->msg,msg_recv->id.u8[0], msg_recv->id.u8[1]);
-        add_child(me_node,msg_recv->id.u8[0]);
+        printf("unicast received payload UN rt %s %d.%d\n",
+        msg_recv->msg,msg_recv->id.u8[0], msg_recv->id.u8[1]);
+        //add_child(me_node,msg_recv->id.u8[0]);
         //item list_backtrace=NULL;
         //item list_visited=NULL;
         //print_childs(me_node,list_backtrace,list_visited);
 
         // Manejo de archivos en contiki
-        
-        char message[32];
-        char buf[100];
-        strcpy(message,"#1.writing routing t");
-        strcpy(buf,message);
-        printf("step 1: %s\n", buf );
+
+        // char message[32];
+        // char buf[100];
+        // strcpy(message,"#1.writing routing t");
+        // strcpy(buf,message);
+        // printf("step 1: %s\n", buf );
 
         /* step 2 */
         /*        */
@@ -358,14 +374,15 @@ PROCESS_THREAD(build_RT,ev,data)
         char *filename = "msg_file";
         int fd_write;
         int n;
-        fd_write = cfs_open(filename, CFS_WRITE);
-        if(fd_write != -1) {
-          n = cfs_write(fd_write, message, sizeof(message));
-          cfs_close(fd_write);
-          printf("step 2: successfully written to cfs. wrote %i bytes\n", n);
-        } else {
-          printf("ERROR: could not write to memory in step 2.\n");
-        }
+
+        // fd_write = cfs_open(filename, CFS_WRITE);
+        // if(fd_write != -1) {
+        //   n = cfs_write(fd_write, message, sizeof(message));
+        //   cfs_close(fd_write);
+        //   printf("step 2: successfully written to cfs. wrote %i bytes\n", n);
+        // } else {
+        //   printf("ERROR: could not write to memory in step 2.\n");
+        // }
 
 
 

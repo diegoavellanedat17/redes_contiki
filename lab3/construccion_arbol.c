@@ -48,11 +48,12 @@
  }
 
  // llenar el mensaje de unicast con la informacion
- void fill_unicast_msg(struct unicast_message *unicast_msg,linkaddr_t id){
-   char str_aux[20];
-   strcpy(str_aux,"I am");
+ void fill_unicast_msg(struct unicast_message *unicast_msg,linkaddr_t id,char *msg){
+   //char str_aux[20];
+   //strcpy(str_aux,"I am");
    //strcpy(str_aux,(char *)id.u8[0]);
-   unicast_msg->msg="I am ";
+   unicast_msg->msg=msg;
+   printf("Enviando unicast con mensaje:  %s\n",unicast_msg->msg );
    //Link Address copy copia del segundo argumento en el primer once
    linkaddr_copy(&unicast_msg->id,&id);
 

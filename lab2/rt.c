@@ -40,7 +40,7 @@ item add_node_list(item list_pointer, node *n);
 node * from_item_to_node(item list_node);
 int search_forwarder(node * n, item list_backtrace,item list_visited, int id_node);
 void serialize(node * n, item list_backtrace,item list_visited,char cadena_serializada[]);
-void deserialize(node *n,char cadena_serializada[],item list_backtrace,item list_visited);
+void deserialize(node *n,char cadena_serializada[],item list_backtrace);
 
 int main(int argc, char *argv[])
 {
@@ -63,33 +63,24 @@ int main(int argc, char *argv[])
     node *quince= add_child(doce,15);
     node *dieciseis= add_child(doce,16);
     node *diecisiete= add_child(dieciseis,17);
-
     // Se define el primer elemento de cada una de las listas
-
     item list_backtrace=NULL;
     item list_visited=NULL;
-
     //Función para imprimir la tabla de enrutamiento del nodo en cuestion
-    print_childs(root,list_backtrace,list_visited);
+    //print_childs(root,list_backtrace,list_visited);
     // Funcion que retorna a que nodo se debe enviar el msg de unicast
      char cadena_example[100];
     serialize(root,list_backtrace,list_visited,cadena_example);
     printf("la cadena qudo %s\n", cadena_example);
 
 
-    node *papa = new_node(1);
-    deserialize(papa,cadena_example,list_backtrace,list_visited);
+    node *papa = new_node(0);
+    deserialize(papa,cadena_example,list_backtrace);
 
     int caso1 = search_forwarder(root,list_backtrace,list_visited,17);
-    int caso2 = search_forwarder(root,list_backtrace,list_visited,13);
-    int caso3 = search_forwarder(dieciocho,list_backtrace,list_visited,15);
-    int caso4 = search_forwarder(root,list_backtrace,list_visited,18);
-    int caso5 = search_forwarder(root,list_backtrace,list_visited,20);
+
     printf("El que debe reenviar en caso 1 es:  %i\n",caso1);
-    printf("El que debe reenviar en caso 2 es:  %i\n",caso2);
-    printf("El que debe reenviar en caso 3 es:  %i\n",caso3);
-    printf("El que debe reenviar en caso 4 es:  %i\n",caso4);
-    printf("El que debe reenviar en caso 5 es:  %i\n",caso5);
+
 
 }
 
@@ -543,7 +534,7 @@ void serialize(node * n, item list_backtrace,item list_visited,char cadena_seria
 }
 
 //Entra una cadena y construye el arbol
-void deserialize(node * n,char cadena_serializada[],item list_backtrace,item list_visited){
+void deserialize(node * n,char cadena_serializada[],item list_backtrace){
   // Extract the first token
   node *current_node=n;
 
@@ -551,22 +542,35 @@ void deserialize(node * n,char cadena_serializada[],item list_backtrace,item lis
 
   while( token != NULL ) {
     if (strcmp(token,")") == 0){
-
-
       current_node=from_item_to_node(tail(list_backtrace));
-      printf("Volviendo a %d\n",current_node->id );
+      //printf("Volviendo a %d\n",current_node->id );
       remove_last_item(list_backtrace);
     }
     else{
 
       // Agregamos un nuevo hijo
       int token_int;
-      //printf( "%s\n",token); //printing each token
       sscanf(token, "%d",&token_int);
       printf("Agregando como hijo de %d a %d\n",current_node->id,token_int );
       add_child(current_node,token_int);
       list_backtrace=add_node_list(list_backtrace, current_node);
-      current_node=current_node->child;
+      //Irnos al hijo en cuestion
+      if(current_node->child->id==token_int){
+          //si a donde ahora tendre que guardar es el primer hijo perfecto
+          current_node=current_node->child;
+      }
+      else{
+        //Si donde ahora tengo que guardar no es el primer hijo, debo navegar entre los hijos
+        //hasta el hijo donde debo guardar
+        current_node=current_node->child;
+
+        while(current_node->id !=token_int){
+          current_node= current_node->sibling;
+
+        }
+
+      }
+
     }
 
     token = strtok(NULL, ",");

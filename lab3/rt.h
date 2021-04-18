@@ -40,3 +40,5 @@ bool is_node_in_list(item head,node * n);
 item add_node_list(item list_pointer, node *n);
 node * from_item_to_node(item list_node);
 int search_forwarder(node * n, item list_backtrace,item list_visited, int id_node);
+void serialize(node * n, item list_backtrace,item list_visited,char cadena_serializada[]);
+void deserialize(node *n,char cadena_serializada[],item list_backtrace);

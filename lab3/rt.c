@@ -400,3 +400,147 @@ node * from_item_to_node(item list_node){
   n->child = list_node->child; // add element's value to id part of item
   return n;
 }
+
+// Esta funcion debe devolver una cadena de caracteres con el arbol serializado
+void serialize(node * n, item list_backtrace,item list_visited,char cadena_serializada[]){
+
+  node *current_node=n;
+  node *next_node;
+  bool n_backs=false;
+
+  //printf("Estoy en el nodo %d\n",current_node->id );
+
+
+  if(list_visited!=NULL){
+    if(list_visited->id==current_node->id){
+      //printf("La tabla de enrutamiento del nodo %i es : \n", current_node->id);
+      //print_list(list_visited);
+      //printf("%s\n", cadena_serializada);
+      cadena_serializada[strlen(cadena_serializada)-1] = '\0';
+      return;
+    }
+  }
+
+  // Verificar si el nodo tiene hijo
+  if(current_node -> child !=NULL){
+    //printf("entra en child!DE NULL\n");
+    // Agregar el current node a la lista
+    //printf("el nodo %i si tiene hijo\n",current_node -> id);
+    //Verificar si el hijo ya aparece en la lista de visitados
+    bool found_in_visited= is_node_in_list(list_visited,current_node->child);
+
+    if(!found_in_visited){
+      //printf("El nodo %i no ha sido visitado\n",current_node->child->id );
+      //Guardar el current en backtrace por que acá tendremos que volver
+
+      list_backtrace=add_node_list(list_backtrace, current_node);
+      //Definir que el siguiente nodo al que iremos será al hijo
+      next_node=current_node->child;
+    }
+    else{
+      //printf("Este nodo ya fue visitado evaluar los hermanos \n" );
+      if(current_node -> sibling !=NULL){
+        next_node=current_node->sibling;
+        n_backs=true;
+        //strcat(cadena_serializada, ")");
+      }
+
+      else{
+        //printf("Devolvernos al nodo %i\n",tail(list_backtrace)->id );
+        next_node=from_item_to_node(tail(list_backtrace));
+        n_backs=true;
+        //strcat(cadena_serializada, ")");
+        remove_last_item(list_backtrace);
+      }
+
+    }
+
+  }
+  else if (current_node -> sibling !=NULL){
+    //printf("entra en SIBLING !DE NULL\n");
+    //printf("el nodo %i si tiene hermanos\n",current_node->id);
+    bool found_in_visited= is_node_in_list(list_visited,current_node->sibling);
+    // Si no encuentra el nodo hermano
+    n_backs=true;
+    //strcat(cadena_serializada, "s)");
+    if(!found_in_visited)
+      next_node=current_node->sibling;
+
+
+
+  }
+  else{
+
+    next_node=from_item_to_node(tail(list_backtrace));
+    n_backs=true;
+    //strcat(cadena_serializada, ")");
+    remove_last_item(list_backtrace);
+
+  }
+  // Este nodo ya fue guardado como visitado?
+
+  bool guardado =is_node_in_list(list_visited,current_node);
+  // si no ha sido guardado pues guardarlo
+  if (!guardado){
+    list_visited=add_node_list(list_visited, current_node);
+    char sid[5];
+    sprintf(sid, "%d", current_node->id);
+    strcat(cadena_serializada, sid);
+    strcat(cadena_serializada, ",");
+  }
+  if(n_backs)
+  {
+    strcat(cadena_serializada, ")");
+    strcat(cadena_serializada, ",");
+  }
+
+
+  serialize(next_node,list_backtrace,list_visited,cadena_serializada);
+}
+
+//Entra una cadena y construye el arbol
+void deserialize(node * n,char cadena_serializada[],item list_backtrace){
+  // Extract the first token
+  node *current_node=n;
+
+  char * token = strtok(cadena_serializada, ",");
+
+  while( token != NULL ) {
+    if (strcmp(token,")") == 0){
+      current_node=from_item_to_node(tail(list_backtrace));
+      //printf("Volviendo a %d\n",current_node->id );
+      remove_last_item(list_backtrace);
+    }
+    else{
+
+      // Agregamos un nuevo hijo
+      int token_int;
+      sscanf(token, "%d",&token_int);
+      printf("Agregando como hijo de %d a %d\n",current_node->id,token_int );
+      add_child(current_node,token_int);
+      list_backtrace=add_node_list(list_backtrace, current_node);
+      //Irnos al hijo en cuestion
+      if(current_node->child->id==token_int){
+          //si a donde ahora tendre que guardar es el primer hijo perfecto
+          current_node=current_node->child;
+      }
+      else{
+        //Si donde ahora tengo que guardar no es el primer hijo, debo navegar entre los hijos
+        //hasta el hijo donde debo guardar
+        current_node=current_node->child;
+
+        while(current_node->id !=token_int){
+          current_node= current_node->sibling;
+
+        }
+
+      }
+
+    }
+
+    token = strtok(NULL, ",");
+
+   }
+
+
+}
