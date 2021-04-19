@@ -88,7 +88,7 @@ node * add_child(node * n, int id)
         n->child = new_node(id);// Asignar el hijo a un nuevo nodo con el mismo id
         n->child->sibling=n_previous_child->sibling;// Como en teoria viene con su tabla de enrutamiento el nuevo paquete
         //No hay necesidad de agregar los hijos anteriores
-
+        free(n_previous_child);
         return n->child;
       }
 
@@ -104,6 +104,7 @@ node * add_child(node * n, int id)
             // El hermano de este ahora apunta aca
             node_child->sibling->sibling=n_previous_sibling->sibling;
             //printf("Hermano actualizado\n" );
+            free(n_previous_sibling);
             return node_child->sibling;
           }
 
@@ -541,8 +542,7 @@ node * deserialize(node * n,char cadena_serializada[],item list_backtrace){
         }
 
       }
-      else
-        printf("el mismo padre\n");
+
 
     }
 

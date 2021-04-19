@@ -301,7 +301,6 @@ PROCESS_THREAD(unicast_msg, ev, data)
         char buf[100];
         int fd_read, fd_write;
         int n_cfs;
-        
 
 
         fd_read = cfs_open(filename, CFS_READ);
@@ -368,8 +367,8 @@ PROCESS_THREAD(build_RT,ev,data)
       if(ev== PROCESS_EVENT_CONTINUE){
 
         struct unicast_message *msg_recv= data;
-        printf("unicast received payload UN rt %s %d.%d\n",
-        msg_recv->msg_cadena,msg_recv->id.u8[0], msg_recv->id.u8[1]);
+        // printf("unicast received payload UN rt %s %d.%d\n",
+        // msg_recv->msg_cadena,msg_recv->id.u8[0], msg_recv->id.u8[1]);
         char mensaje_cadena[]="";
         strcpy(mensaje_cadena,msg_recv->msg_cadena);
 
@@ -406,15 +405,29 @@ PROCESS_THREAD(build_RT,ev,data)
           }
 
           if (strcmp(buf,"") != 0){
-            printf("El de este current node es : %s\n", buf);
+
             //me_node= new_node(linkaddr_node_addr.u8[0]);
             item list_backtrace=NULL;
             item list_visited=NULL;
-            me_node= deserialize(me_node,buf,list_backtrace);
-            me_node=deserialize(me_node,mensaje_cadena,list_backtrace);
+            printf("Leyendo lo que habia en el archivo\n" );
+            printf("El de este current node es : %s\n", buf);
+            deserialize(me_node,buf,list_backtrace);
+            printf("Deserializando lo del mensaje de entrada\n" );
+            deserialize(me_node,mensaje_cadena,list_backtrace);
             char cadena_to_save[100];
             serialize(me_node,list_backtrace,list_visited,cadena_to_save);
             printf("La cadena a guardar es %s\n", cadena_to_save);
+
+            fd_write = cfs_open(filename, CFS_WRITE);
+
+            if(fd_write != -1) {
+
+              n_cfs= cfs_write(fd_write, cadena_to_save, sizeof(cadena_to_save));
+              cfs_close(fd_write);
+            }
+            else {
+              printf("No hemos podido escribir de nuevo .\n");
+            }
 
 
           }
