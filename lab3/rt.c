@@ -499,48 +499,57 @@ void serialize(node * n, item list_backtrace,item list_visited,char cadena_seria
 }
 
 //Entra una cadena y construye el arbol
-void deserialize(node * n,char cadena_serializada[],item list_backtrace){
+node * deserialize(node * n,char cadena_serializada[],item list_backtrace){
   // Extract the first token
   node *current_node=n;
 
   char * token = strtok(cadena_serializada, ",");
 
   while( token != NULL ) {
+
     if (strcmp(token,")") == 0){
       current_node=from_item_to_node(tail(list_backtrace));
-      //printf("Volviendo a %d\n",current_node->id );
+      printf("Volviendo a %d\n",current_node->id );
       remove_last_item(list_backtrace);
     }
     else{
 
       // Agregamos un nuevo hijo
       int token_int;
-      sscanf(token, "%d",&token_int);
-      printf("Agregando como hijo de %d a %d\n",current_node->id,token_int );
-      add_child(current_node,token_int);
-      list_backtrace=add_node_list(list_backtrace, current_node);
-      //Irnos al hijo en cuestion
-      if(current_node->child->id==token_int){
-          //si a donde ahora tendre que guardar es el primer hijo perfecto
-          current_node=current_node->child;
-      }
-      else{
-        //Si donde ahora tengo que guardar no es el primer hijo, debo navegar entre los hijos
-        //hasta el hijo donde debo guardar
-        current_node=current_node->child;
+      //sprintf(token, "%d",&token_int);
+      token_int=atoi(token);
 
-        while(current_node->id !=token_int){
-          current_node= current_node->sibling;
+      if(n->id!=token_int){
+        printf("Agregando como hijo de %d a %d\n",current_node->id,token_int );
+        add_child(current_node,token_int);
+        list_backtrace=add_node_list(list_backtrace, current_node);
+        //Irnos al hijo en cuestion
+        if(current_node->child->id==token_int){
+            //si a donde ahora tendre que guardar es el primer hijo perfecto
+            current_node=current_node->child;
+        }
+        else{
+          //Si donde ahora tengo que guardar no es el primer hijo, debo navegar entre los hijos
+          //hasta el hijo donde debo guardar
+          current_node=current_node->child;
+
+          while(current_node->id !=token_int){
+            current_node= current_node->sibling;
+
+          }
 
         }
 
       }
+      else
+        printf("el mismo padre\n");
 
     }
 
     token = strtok(NULL, ",");
 
    }
+   return current_node;
 
 
 }

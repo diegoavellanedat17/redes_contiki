@@ -95,7 +95,7 @@ broadcast_recv(struct broadcast_conn *c, const linkaddr_t *from)
   uint16_t rssi_link=packetbuf_attr(PACKETBUF_ATTR_RSSI);
   signed int rssi_total=b_rec_rssi_c+rssi_link;
   // Imprimo lo que recibo y luego lo meto en una lista
-  printf("broadcast message received from %d with rssi_c = %d\n",b_rec_id.u8[0],b_rec_rssi_c);
+  //printf("broadcast message received from %d with rssi_c = %d\n",b_rec_id.u8[0],b_rec_rssi_c);
 
   // Si soy el nodo root no tengo que hacer ninguna lista
   if (linkaddr_node_addr.u8[0]!=1) {
@@ -157,8 +157,8 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
   // ya tengo el mensaje que debo retransmitir
   msg_recv=*((struct unicast_message*)msg);//
 
-  printf("unicast received payload %s %d.%d\n",
-	 msg_recv.msg,msg_recv.id.u8[0], msg_recv.id.u8[1]);
+  printf("unicast received payload %s  %d.%d\n",
+	msg_recv.msg_cadena,msg_recv.id.u8[0], msg_recv.id.u8[1]);
    // Aca se usarà el add child y esas cosas
    //Enviar a un proceso en donde se vaya contruyendo la tabla de enrutamiento.
    process_post(&build_RT,PROCESS_EVENT_CONTINUE,&msg_recv);
@@ -214,7 +214,7 @@ PROCESS_THREAD(send_beacon, ev, data)
 
     packetbuf_copyfrom(&b, sizeof(struct beacon));
     broadcast_send(&broadcast);
-    printf("broadcast message sent with %d\n",n.rssi_c);
+    //printf("broadcast message sent with %d\n",n.rssi_c);
   }
 
   PROCESS_END();
@@ -294,46 +294,61 @@ PROCESS_THREAD(unicast_msg, ev, data)
       /* step 3 */
       /*        */
       /* reading from cfs */
-      char message[32];
-      char *filename = "msg_file";
-      char buf[100];
-      int fd_read, fd_write;
-      int n_cfs;
-      strcpy(buf,"empty string");
-      fd_read = cfs_open(filename, CFS_READ);
-      if(fd_read!=-1) {
-          cfs_read(fd_read, buf, sizeof(message));
-          //printf("paso 2: se leyo =%s\n", buf);
-          // lo que lee del archivo, llena el unicast para emviarlo
-          fill_unicast_msg(&u_msg,linkaddr_node_addr,buf);
-          cfs_close(fd_read);
-        }
-      else {
-          // Aqui solo entra la primera vez, con el objetivo de guardar el propio nodo con )
-          //printf("ERROR: could not read from memory in step 3.\n");
-          //Creo una variable donde se enviarà el unicast por primera vez
-          char  buf_link[10];
-          sprintf(buf_link, "%d", linkaddr_node_addr.u8[0]);
-          strcat(buf_link, ")");
+      if (linkaddr_node_addr.u8[0]!=1) {
 
-          char *mensaje=buf_link;
-          fd_write = cfs_open(filename, CFS_WRITE);
+        char message[32];
+        char *filename = "msg_file";
+        char buf[100];
+        int fd_read, fd_write;
+        int n_cfs;
+        
 
-          if(fd_write != -1) {
-            n_cfs= cfs_write(fd_write, buf_link, sizeof(buf_link));
-            cfs_close(fd_write);
-            //printf("paso 1: Escrito dentro del envio de Unicast con buf_link= %s\n", buf_link);
-            fill_unicast_msg(&u_msg,linkaddr_node_addr,buf_link);
-          } else {
-            printf("No hemos podido escribir en el unicast .\n");
+
+        fd_read = cfs_open(filename, CFS_READ);
+        if(fd_read!=-1) {
+            cfs_read(fd_read, buf, sizeof(message));
+            printf("paso 2: se leyo : %s\n", buf);
+            // lo que lee del archivo, llena el unicast para emviarlo
+            //msg_to_fill=strdup(buf);
+
+            cfs_close(fd_read);
+
+            fill_unicast_msg(&u_msg,linkaddr_node_addr,buf);
+            packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
+            unicast_send(&uc, &n.preferred_parent);
+
           }
 
-      packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
-      unicast_send(&uc, &n.preferred_parent);
-  }
+        else {
+            // Aqui solo entra la primera vez, con el objetivo de guardar el propio nodo con )
+            //printf("ERROR: could not read from memory in step 3.\n");
+            //Creo una variable donde se enviara el unicast por primera vez
+            char  buf_link[10];
+            sprintf(buf_link, "%d", linkaddr_node_addr.u8[0]);
+            printf("buf_link es %s\n",buf_link );
 
-  PROCESS_END();
-}
+            //aca se supone que arma el mensaje completo
+            fd_write = cfs_open(filename, CFS_WRITE);
+
+            if(fd_write != -1) {
+              printf("En esta se genera el archivo pero no se envia\n");
+              n_cfs= cfs_write(fd_write, buf_link, sizeof(buf_link));
+              cfs_close(fd_write);
+            }
+            else {
+              printf("No hemos podido escribir en el unicast .\n");
+            }
+
+          }
+
+
+        }
+
+    }
+
+
+    PROCESS_END();
+
 }
 
 /*---------------------------------------------------------------------------*/
@@ -354,7 +369,57 @@ PROCESS_THREAD(build_RT,ev,data)
 
         struct unicast_message *msg_recv= data;
         printf("unicast received payload UN rt %s %d.%d\n",
-        msg_recv->msg,msg_recv->id.u8[0], msg_recv->id.u8[1]);
+        msg_recv->msg_cadena,msg_recv->id.u8[0], msg_recv->id.u8[1]);
+        char mensaje_cadena[]="";
+        strcpy(mensaje_cadena,msg_recv->msg_cadena);
+
+        char message[32];
+        char *filename = "msg_file";
+        char buf[100]="";
+        int fd_read,fd_write;
+        int n_cfs;
+
+        fd_read = cfs_open(filename, CFS_READ);
+
+        if(fd_read!=-1){
+            cfs_read(fd_read, buf, sizeof(message));
+            cfs_close(fd_read);
+          }
+
+        else {
+
+          char  buf_link[10];
+          sprintf(buf_link, "%d", linkaddr_node_addr.u8[0]);
+          //printf("buf_link es %s\n",buf_link );
+          //strcat(buf_link, ",)");
+
+          fd_write = cfs_open(filename, CFS_WRITE);
+
+          if(fd_write != -1) {
+            printf("En esta se genera el archivo pero no se envia\n");
+            n_cfs= cfs_write(fd_write, buf_link, sizeof(buf_link));
+            cfs_close(fd_write);
+          }
+
+          else
+              printf("No hemos podido escribir en el unicast .\n");
+          }
+
+          if (strcmp(buf,"") != 0){
+            printf("El de este current node es : %s\n", buf);
+            //me_node= new_node(linkaddr_node_addr.u8[0]);
+            item list_backtrace=NULL;
+            item list_visited=NULL;
+            me_node= deserialize(me_node,buf,list_backtrace);
+            me_node=deserialize(me_node,mensaje_cadena,list_backtrace);
+            char cadena_to_save[100];
+            serialize(me_node,list_backtrace,list_visited,cadena_to_save);
+            printf("La cadena a guardar es %s\n", cadena_to_save);
+
+
+          }
+
+
         //add_child(me_node,msg_recv->id.u8[0]);
         //item list_backtrace=NULL;
         //item list_visited=NULL;
@@ -371,9 +436,9 @@ PROCESS_THREAD(build_RT,ev,data)
         /* step 2 */
         /*        */
         /* writing to cfs */
-        char *filename = "msg_file";
-        int fd_write;
-        int n;
+        //char *filename = "msg_file";
+        //int fd_write;
+        //int n;
 
         // fd_write = cfs_open(filename, CFS_WRITE);
         // if(fd_write != -1) {
