@@ -48,11 +48,11 @@
  }
 
  // llenar el mensaje de unicast con la informacion
- void fill_unicast_msg(struct unicast_message *unicast_msg,linkaddr_t id,char msg_cadena[]){
+ void fill_unicast_msg(struct unicast_message *unicast_msg,linkaddr_t id,char msg_cadena[],int id_dest){
    //char str_aux[20];
   //unicast_msg->msg_cadena=msg_cadena;
   strcpy(unicast_msg->msg_cadena,msg_cadena);
-
+    unicast_msg->id_dest=id_dest;
    //Link Address copy copia del segundo argumento en el primer once
    linkaddr_copy(&unicast_msg->id,&id);
 

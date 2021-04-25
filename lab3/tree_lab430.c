@@ -32,9 +32,9 @@
 
 /**
  * \file
- *         Testing the broadcast layer in Rime
+ *         Arbol enrutamiento
  * \author
- *         Adam Dunkels <adam@sics.se>
+ *        Diego Avellaneda
  */
 
 #include "contiki.h"
@@ -47,6 +47,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "cfs/cfs.h"
+
 // Librerias propias
 #include <construccion_arbol.h>
 #include <rt.h>
@@ -64,8 +65,10 @@ PROCESS(send_beacon, "Envia Beacons Periodicamente");
 PROCESS(unicast_msg, "Mensajes de Unicast");
 // Construir la tabla de enrutamiento del nodo
 PROCESS(build_RT, "Construir la tabla de enrutamiento ");
+// Crear el proceso de seleccion de padre
+PROCESS(generate_pkt, "Generar paquetes node to node");
 
-AUTOSTART_PROCESSES(&send_beacon,&select_parent,&unicast_msg,&build_RT);
+AUTOSTART_PROCESSES(&send_beacon,&select_parent,&unicast_msg,&build_RT,&generate_pkt);
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
@@ -161,7 +164,22 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 	msg_recv.msg_cadena,msg_recv.id.u8[0], msg_recv.id.u8[1]);
    // Aca se usarà el add child y esas cosas
    //Enviar a un proceso en donde se vaya contruyendo la tabla de enrutamiento.
-   process_post(&build_RT,PROCESS_EVENT_CONTINUE,&msg_recv);
+
+   // diferenciar entre los paquetes
+
+  packetbuf_attr_t tipo_u =  packetbuf_attr(TIPO_UNICAST);
+  if(tipo_u==T_CONTROL){
+    printf("T_CONTROL\n");
+    //HAcer post para crear la tabla
+    process_post(&build_RT,PROCESS_EVENT_CONTINUE,&msg_recv);
+  }
+
+  if(tipo_u==T_DATA){
+    printf("T_DATA \n");
+    printf("El desitino final es %d \n", msg_recv.id_dest);
+
+  }
+
 
 }
 /*---------------------------------------------------------------------------*/
@@ -281,6 +299,23 @@ PROCESS_THREAD(unicast_msg, ev, data)
   PROCESS_EXITHANDLER(unicast_close(&uc);)
 
   PROCESS_BEGIN();
+  printf("como aqui entra una sola vez se debe mirar como menear \n");
+  int fd_write;
+  char  buf_link[10];
+  sprintf(buf_link, "%d", linkaddr_node_addr.u8[0]);
+  printf("buf_link es %s\n",buf_link );
+  char *filename = "msg_file";
+
+
+  fd_write = cfs_open(filename, CFS_WRITE);
+  if(fd_write != -1) {
+        printf("En esta se guarda lo siguiente en el arc: %s\n",buf_link);
+        cfs_write(fd_write, buf_link, sizeof(buf_link));
+        cfs_close(fd_write);
+      }
+      else {
+        printf("No hemos podido escribir en el archivo .\n");
+      }
 
   unicast_open(&uc, 146, &unicast_callbacks);
 
@@ -290,17 +325,13 @@ PROCESS_THREAD(unicast_msg, ev, data)
     etimer_set(&et, CLOCK_SECOND * 15 + random_rand() % (CLOCK_SECOND * 5));
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
-      /*        */
-      /* step 3 */
-      /*        */
-      /* reading from cfs */
+
       if (linkaddr_node_addr.u8[0]!=1) {
 
-        char message[32];
+        char message[31];
         char *filename = "msg_file";
         char buf[100];
-        int fd_read, fd_write;
-        int n_cfs;
+        int fd_read;
 
 
         fd_read = cfs_open(filename, CFS_READ);
@@ -313,31 +344,16 @@ PROCESS_THREAD(unicast_msg, ev, data)
 
             cfs_close(fd_read);
 
-            fill_unicast_msg(&u_msg,linkaddr_node_addr,buf);
+            fill_unicast_msg(&u_msg,linkaddr_node_addr,buf,0);
             packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
+            //Antes de enviar el paquete de unicast se hace un atributo
+            packetbuf_set_attr(TIPO_UNICAST, T_CONTROL);
             unicast_send(&uc, &n.preferred_parent);
 
           }
 
         else {
-            // Aqui solo entra la primera vez, con el objetivo de guardar el propio nodo con )
-            //printf("ERROR: could not read from memory in step 3.\n");
-            //Creo una variable donde se enviara el unicast por primera vez
-            char  buf_link[10];
-            sprintf(buf_link, "%d", linkaddr_node_addr.u8[0]);
-            printf("buf_link es %s\n",buf_link );
-
-            //aca se supone que arma el mensaje completo
-            fd_write = cfs_open(filename, CFS_WRITE);
-
-            if(fd_write != -1) {
-              printf("En esta se genera el archivo pero no se envia\n");
-              n_cfs= cfs_write(fd_write, buf_link, sizeof(buf_link));
-              cfs_close(fd_write);
-            }
-            else {
-              printf("No hemos podido escribir en el unicast .\n");
-            }
+            printf("No se ha podido leer el archivo\n");
 
           }
 
@@ -376,7 +392,7 @@ PROCESS_THREAD(build_RT,ev,data)
         char *filename = "msg_file";
         char buf[100]="";
         int fd_read,fd_write;
-        int n_cfs;
+
 
         fd_read = cfs_open(filename, CFS_READ);
         // Si el archivo existe toca leerlo
@@ -387,20 +403,8 @@ PROCESS_THREAD(build_RT,ev,data)
 
         // Si el archivo no existe toca crearlo
         else {
-          // Se crea el archivo, este requiere poca memoria por que solo se guarda el current node
-          char  buf_link[10];
-          sprintf(buf_link, "%d", linkaddr_node_addr.u8[0]);
 
-          fd_write = cfs_open(filename, CFS_WRITE);
-
-          if(fd_write != -1) {
-            printf("En esta se genera el archivo pero no se envia\n");
-            n_cfs= cfs_write(fd_write, buf_link, sizeof(buf_link));
-            cfs_close(fd_write);
-          }
-
-          else
-              printf("No hemos podido escribir en el unicast .\n");
+              printf("No se ha podido leer.\n");
           }
 
           // ya aqui entramos luego de leer el archivo si el buffer esta lleno entra aca
@@ -437,7 +441,7 @@ PROCESS_THREAD(build_RT,ev,data)
 
             if(fd_write != -1) {
 
-              n_cfs= cfs_write(fd_write, cadena_to_save, sizeof(cadena_to_save));
+              cfs_write(fd_write, cadena_to_save, sizeof(cadena_to_save));
               cfs_close(fd_write);
               //remove_table_memory(me_node,list_backtrace,list_visited);
             }
@@ -448,9 +452,114 @@ PROCESS_THREAD(build_RT,ev,data)
 
           }
 
+
+
+
+
+
     }
 
   }
 
   PROCESS_END();
+}
+
+//Proceso para enviar unicast de Tipo DATA
+
+/*---------------------------------------------------------------------------*/
+PROCESS_THREAD(generate_pkt, ev, data)
+{
+  PROCESS_EXITHANDLER(unicast_close(&uc);)
+
+  PROCESS_BEGIN();
+
+  static node *me_node; //= new_node(5);
+  me_node= new_node(linkaddr_node_addr.u8[0]);
+  unicast_open(&uc, 146, &unicast_callbacks);
+
+  while(1) {
+    static struct etimer et;
+
+    etimer_set(&et, CLOCK_SECOND * 40 + random_rand() % (CLOCK_SECOND * 5));
+
+    PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+      //Aca defino cual quiero que sea el nodo que envie
+
+      //Aca defino el nodo que quiero que reciba
+      int node_receiver=5;
+      if (linkaddr_node_addr.u8[0]==3) {
+        printf("---------------------------------------------\n");
+        // El mensaje que se enviará por unicast
+        char buf[100];
+        strcat(buf, "Hola soy el nodo 3");
+        // el nodo de destino actual,
+        linkaddr_t addr_destino;
+        char *filename = "msg_file";
+        // Aca se debe leer el archivo para saber que hay:
+        char buf_read[100]="";
+        int fd_read;
+        fd_read = cfs_open(filename, CFS_READ);
+        // Si el archivo existe toca leerlo
+        if(fd_read!=-1){
+            cfs_read(fd_read, buf_read, sizeof(buf_read));
+            cfs_close(fd_read);
+          }
+
+        // Si el archivo no existe toca crearlo
+        else
+            printf("No se ha podido leer.\n");
+
+        if (strcmp(buf_read,"") != 0){
+
+              // Se crean las dos listas que se emplearan en las diferentes funciones
+              item list_backtrace=NULL;
+              item list_visited=NULL;
+
+
+              printf("PASO1:  Lo que hay en el archivo del nodo es  : %s\n", buf_read);
+              // Se deserializa, la idea es que aca se creen cosas nuevas, claramente no volver a crear todo
+              printf("PASO2: Deserializar lo del archivo\n" );
+              deserialize(me_node,buf_read,list_backtrace);
+              // Una vez se deserializa toca definir quien debe
+              list_backtrace=NULL;
+              list_visited=NULL;
+              int who_forward=search_forwarder(me_node,list_backtrace,list_visited, node_receiver);
+              printf("el que debe de tramsnimir es %d\n", who_forward);
+              //aca se llena con el que tenga que retransmitir
+              fill_unicast_msg(&u_msg,linkaddr_node_addr,buf,node_receiver);
+              packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
+
+
+              if(who_forward==0){
+                printf("Enviando UPSTREAM \n");
+                packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+                unicast_send(&uc, &n.preferred_parent);
+              }
+              else{
+                addr_destino.u8[0] = who_forward;
+                addr_destino.u8[1] = 0;
+                printf("Enviando DOWNSTREAM \n");
+                packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+                unicast_send(&uc, &addr_destino);
+
+              }
+
+
+            }
+
+
+
+
+        //packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
+        //Antes de enviar el paquete de unicast se hace un atributo
+        //packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+        //unicast_send(&uc, &n.preferred_parent);
+
+        }
+
+    }
+
+
+    PROCESS_END();
+
 }

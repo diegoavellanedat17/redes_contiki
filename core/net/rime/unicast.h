@@ -67,6 +67,7 @@
 struct unicast_conn;
 
 #define UNICAST_ATTRIBUTES   { PACKETBUF_ADDR_RECEIVER, PACKETBUF_ADDRSIZE }, \
+                              { TIPO_UNICAST, PACKETBUF_ATTR_BYTE }, \
                         BROADCAST_ATTRIBUTES
 
 struct unicast_callbacks {

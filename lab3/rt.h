@@ -6,6 +6,9 @@
 
 #include "net/rime/rime.h"
 
+#define T_CONTROL 0x01
+#define T_DATA 0x02
+
 // Estructura del nodo, se tiene un id, apuntadores al sibling y se child
 struct node {
     int id;
@@ -28,7 +31,6 @@ typedef struct LinkedList *item; //Define node as pointer of id type struct Link
 typedef struct node node;
 
 
-
 //Definicion de las funciones que se encuentran despues del main
 node * new_node(int);
 node * add_sibling(node *, int);
@@ -44,3 +46,4 @@ node * from_item_to_node(item list_node);
 int search_forwarder(node * n, item list_backtrace,item list_visited, int id_node);
 void serialize(node * n, item list_backtrace,item list_visited,char cadena_serializada[]);
 node * deserialize(node *n,char cadena_serializada[],item list_backtrace);
+void remove_table_memory(node * n, item list_backtrace,item list_visited);

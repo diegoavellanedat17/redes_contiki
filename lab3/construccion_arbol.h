@@ -20,6 +20,7 @@
 /* This is the structure of unicast ping messages. */
 struct unicast_message {
   char msg_cadena[40];
+  int id_dest;
   linkaddr_t id;
 };
 ////////////////////////////////////
@@ -52,4 +53,4 @@ struct unicast_message u_msg;
 //static struct unicast_conn msg_unicast;
 // llenar el beacon con la informacion
 void fill_beacon_msg (struct beacon *b,linkaddr_t id,signed int rssi_c);
-void fill_unicast_msg(struct unicast_message *unicast_msg,linkaddr_t id, char msg_cadena[]);
+void fill_unicast_msg(struct unicast_message *unicast_msg,linkaddr_t id, char msg_cadena[],int id_dest);
