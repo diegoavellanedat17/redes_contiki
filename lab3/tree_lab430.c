@@ -67,8 +67,10 @@ PROCESS(unicast_msg, "Mensajes de Unicast");
 PROCESS(build_RT, "Construir la tabla de enrutamiento ");
 // Crear el proceso de seleccion de padre
 PROCESS(generate_pkt, "Generar paquetes node to node");
+// Enrutamiento up_down
+PROCESS(routing_up_down, "Enrutamiento UpDOwn");
 
-AUTOSTART_PROCESSES(&send_beacon,&select_parent,&unicast_msg,&build_RT,&generate_pkt);
+AUTOSTART_PROCESSES(&send_beacon,&select_parent,&unicast_msg,&build_RT,&generate_pkt,&routing_up_down);
 /*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
@@ -176,7 +178,7 @@ recv_uc(struct unicast_conn *c, const linkaddr_t *from)
 
   if(tipo_u==T_DATA){
     printf("T_DATA \n");
-    printf("El desitino final es %d \n", msg_recv.id_dest);
+    process_post(&routing_up_down,PROCESS_EVENT_CONTINUE,&msg_recv);
 
   }
 
@@ -322,7 +324,7 @@ PROCESS_THREAD(unicast_msg, ev, data)
   while(1) {
     static struct etimer et;
 
-    etimer_set(&et, CLOCK_SECOND * 15 + random_rand() % (CLOCK_SECOND * 5));
+    etimer_set(&et, CLOCK_SECOND * 60 + random_rand() % (CLOCK_SECOND * 5));
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 
@@ -385,7 +387,7 @@ PROCESS_THREAD(build_RT,ev,data)
 
         struct unicast_message *msg_recv= data;
         // Variable donde se guarda la cadena recibida
-        char mensaje_cadena[]="";
+        char mensaje_cadena[40];
         strcpy(mensaje_cadena,msg_recv->msg_cadena);
 
         char message[100];
@@ -453,10 +455,6 @@ PROCESS_THREAD(build_RT,ev,data)
           }
 
 
-
-
-
-
     }
 
   }
@@ -480,14 +478,14 @@ PROCESS_THREAD(generate_pkt, ev, data)
   while(1) {
     static struct etimer et;
 
-    etimer_set(&et, CLOCK_SECOND * 40 + random_rand() % (CLOCK_SECOND * 5));
+    etimer_set(&et, CLOCK_SECOND * 80 + random_rand() % (CLOCK_SECOND * 5));
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
       //Aca defino cual quiero que sea el nodo que envie
 
       //Aca defino el nodo que quiero que reciba
-      int node_receiver=5;
-      if (linkaddr_node_addr.u8[0]==3) {
+      int node_receiver=12;
+      if (linkaddr_node_addr.u8[0]==5) {
         printf("---------------------------------------------\n");
         // El mensaje que se enviará por unicast
         char buf[100];
@@ -535,6 +533,14 @@ PROCESS_THREAD(generate_pkt, ev, data)
                 packetbuf_set_attr(TIPO_UNICAST, T_DATA);
                 unicast_send(&uc, &n.preferred_parent);
               }
+              else if(who_forward==linkaddr_node_addr.u8[0]){
+                printf("Yo soy el que ya le va enviar finalmente\n" );
+                addr_destino.u8[0] = node_receiver;
+                addr_destino.u8[1] = 0;
+                printf("Enviando DOWNSTREAM \n");
+                packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+                unicast_send(&uc, &addr_destino);
+              }
               else{
                 addr_destino.u8[0] = who_forward;
                 addr_destino.u8[1] = 0;
@@ -562,4 +568,108 @@ PROCESS_THREAD(generate_pkt, ev, data)
 
     PROCESS_END();
 
+}
+
+/*---------------------------------------------------------------------------*/
+//Routing upstream downstream
+PROCESS_THREAD(routing_up_down,ev,data)
+{
+  PROCESS_EXITHANDLER(unicast_close(&uc);)
+
+  PROCESS_BEGIN();
+  //Lo que esta aca corre una sola vez en toda la vida
+  static node *me_node; //= new_node(5);
+  me_node= new_node(linkaddr_node_addr.u8[0]);
+
+  unicast_open(&uc, 146, &unicast_callbacks);
+
+  //printf("Esto corre una sola vez \n");
+  while(1) {
+    // este evento corre cuando le llega un evento a este proceso
+    PROCESS_YIELD();// cede el procesador hasta que llegue un evento
+      if(ev== PROCESS_EVENT_CONTINUE){
+        struct unicast_message *msg_recv= data;
+         // Variable donde se guarda la cadena recibida
+        char mensaje_unicast[100];
+        strcpy(mensaje_unicast,msg_recv->msg_cadena);
+        int nodo_destino=msg_recv->id_dest;
+
+        linkaddr_t addr_destino;
+
+        //Validar si ya soy el nodo de desitino
+        if(linkaddr_node_addr.u8[0]==nodo_destino){
+          printf("YO SOY EL NODO DE DESTINO %s\n",mensaje_unicast );
+        }
+        else{
+          printf("RETRANSMITIR NO SOY EL DE DESTINO\n" );
+          char *filename = "msg_file";
+          // Aca se debe leer el archivo para saber que hay:
+          char buf_read[100]="";
+          int fd_read;
+          fd_read = cfs_open(filename, CFS_READ);
+          // Si el archivo existe toca leerlo
+          if(fd_read!=-1){
+              cfs_read(fd_read, buf_read, sizeof(buf_read));
+              cfs_close(fd_read);
+            }
+
+          // Si el archivo no existe toca crearlo
+          else
+              printf("No se ha podido leer.\n");
+
+          if (strcmp(buf_read,"") != 0){
+
+              // Se crean las dos listas que se emplearan en las diferentes funciones
+              item list_backtrace=NULL;
+              item list_visited=NULL;
+
+
+              printf("PASO1:  Lo que hay en el archivo del nodo es  : %s\n", buf_read);
+              // Se deserializa, la idea es que aca se creen cosas nuevas, claramente no volver a crear todo
+              printf("PASO2: Deserializar lo del archivo\n" );
+              deserialize(me_node,buf_read,list_backtrace);
+              // Una vez se deserializa toca definir quien debe
+              list_backtrace=NULL;
+              list_visited=NULL;
+              int who_forward=search_forwarder(me_node,list_backtrace,list_visited, nodo_destino);
+              printf("el que debe de tramsnimir es %d\n", who_forward);
+              //aca se llena con el que tenga que retransmitir
+              fill_unicast_msg(&u_msg,linkaddr_node_addr,mensaje_unicast,nodo_destino);
+              packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
+
+
+              if(who_forward==0){
+                  printf("Enviando UPSTREAM \n");
+                  packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+                  unicast_send(&uc, &n.preferred_parent);
+              }
+              else if(who_forward==linkaddr_node_addr.u8[0]){
+                  printf("Yo soy el que ya le va enviar finalmente\n" );
+                  addr_destino.u8[0] = nodo_destino;
+                  addr_destino.u8[1] = 0;
+                  printf("Enviando DOWNSTREAM \n");
+                  packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+                  unicast_send(&uc, &addr_destino);
+                }
+              else{
+                  addr_destino.u8[0] = who_forward;
+                  addr_destino.u8[1] = 0;
+                  printf("Enviando DOWNSTREAM \n");
+                  packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+                  unicast_send(&uc, &addr_destino);
+
+                }
+
+
+            }
+
+
+        }
+        //printf("Dentro de routing el nodo de destino es: %d\n", nodo_destino);
+
+    }
+
+  }
+
+  PROCESS_END();
 }
