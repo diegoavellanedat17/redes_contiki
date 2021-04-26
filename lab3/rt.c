@@ -41,7 +41,7 @@ node * add_child(node * n, int id)
         n->child = new_node(id);// Asignar el hijo a un nuevo nodo con el mismo id
         n->child->sibling=n_previous_child->sibling;// Como en teoria viene con su tabla de enrutamiento el nuevo paquete
         //No hay necesidad de agregar los hijos anteriores
-        printf("hijo creado en la  pos %p  \n", &n->child);
+
         return n->child;
       }
 
@@ -58,7 +58,7 @@ node * add_child(node * n, int id)
             node_child->sibling->sibling=n_previous_sibling->sibling;
             //printf("Hermano actualizado\n" );
 
-            printf("hijo creado en la  pos %p  \n", &n->child);
+
             return node_child->sibling;
           }
 
@@ -75,7 +75,7 @@ node * add_child(node * n, int id)
 
     else{
       //printf("Primer hijo agregado\n" );
-      printf("hijo creado en la  pos %p  \n", &n->child);
+
       return (n->child = new_node(id));
     }
 
@@ -367,13 +367,13 @@ void serialize(node * n, item list_backtrace,item list_visited,char cadena_seria
 
   //printf("Estoy en el nodo %d\n",current_node->id );
 
-
   if(list_visited!=NULL){
     if(list_visited->id==current_node->id){
       //printf("La tabla de enrutamiento del nodo %i es : \n", current_node->id);
       //print_list(list_visited);
       //printf("%s\n", cadena_serializada);
       cadena_serializada[strlen(cadena_serializada)-1] = '\0';
+      printf("Llegue al final del serialize\n");
       return;
     }
   }
@@ -451,7 +451,7 @@ void serialize(node * n, item list_backtrace,item list_visited,char cadena_seria
     strcat(cadena_serializada, ",");
   }
 
-
+  //printf("la cadena serializada va en : %s\n",cadena_serializada );
   serialize(next_node,list_backtrace,list_visited,cadena_serializada);
 }
 

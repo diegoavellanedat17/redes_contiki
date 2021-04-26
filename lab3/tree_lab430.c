@@ -433,9 +433,7 @@ PROCESS_THREAD(build_RT,ev,data)
             list_visited=NULL;
             printf("PASO4: Serializar el consolidado\n" );
             serialize(me_node,list_backtrace,list_visited,cadena_to_save);
-
-            // esto totea
-            printf("el me_node es id es -> %p\n",&me_node->id );
+            
             //remove_table_memory(me_node,list_backtrace,list_visited);
             printf("La cadena a guardar es %s\n", cadena_to_save);
 
@@ -553,13 +551,6 @@ PROCESS_THREAD(generate_pkt, ev, data)
 
             }
 
-
-
-
-        //packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
-        //Antes de enviar el paquete de unicast se hace un atributo
-        //packetbuf_set_attr(TIPO_UNICAST, T_DATA);
-        //unicast_send(&uc, &n.preferred_parent);
 
         }
 
