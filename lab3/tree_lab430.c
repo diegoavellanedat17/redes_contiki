@@ -301,7 +301,7 @@ PROCESS_THREAD(unicast_msg, ev, data)
   PROCESS_EXITHANDLER(unicast_close(&uc);)
 
   PROCESS_BEGIN();
-  printf("como aqui entra una sola vez se debe mirar como menear \n");
+
   int fd_write;
   char  buf_link[10];
   sprintf(buf_link, "%d", linkaddr_node_addr.u8[0]);
@@ -433,7 +433,8 @@ PROCESS_THREAD(build_RT,ev,data)
             list_visited=NULL;
             printf("PASO4: Serializar el consolidado\n" );
             serialize(me_node,list_backtrace,list_visited,cadena_to_save);
-            
+
+
             //remove_table_memory(me_node,list_backtrace,list_visited);
             printf("La cadena a guardar es %s\n", cadena_to_save);
 
