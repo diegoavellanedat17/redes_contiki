@@ -324,7 +324,7 @@ PROCESS_THREAD(unicast_msg, ev, data)
   while(1) {
     static struct etimer et;
 
-    etimer_set(&et, CLOCK_SECOND * 60 + random_rand() % (CLOCK_SECOND * 5));
+    etimer_set(&et, CLOCK_SECOND * 50 + random_rand() % (CLOCK_SECOND * 5));
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 
@@ -470,25 +470,27 @@ PROCESS_THREAD(generate_pkt, ev, data)
 
   PROCESS_BEGIN();
 
-  static node *me_node; //= new_node(5);
+  static node *me_node;
   me_node= new_node(linkaddr_node_addr.u8[0]);
   unicast_open(&uc, 146, &unicast_callbacks);
 
   while(1) {
     static struct etimer et;
 
-    etimer_set(&et, CLOCK_SECOND * 80 + random_rand() % (CLOCK_SECOND * 5));
+    etimer_set(&et, CLOCK_SECOND * 120 + random_rand() % (CLOCK_SECOND * 5));
 
     PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
       //Aca defino cual quiero que sea el nodo que envie
 
       //Aca defino el nodo que quiero que reciba
-      int node_receiver=12;
-      if (linkaddr_node_addr.u8[0]==5) {
+      int node_receiver=13;
+      if (linkaddr_node_addr.u8[0]==11) {
+        printf("#A color=orange\n");
         printf("---------------------------------------------\n");
         // El mensaje que se enviará por unicast
         char buf[100];
-        strcat(buf, "Hola soy el nodo 3");
+        strcat(buf, "Hola soy TRANSMISOR");
+
         // el nodo de destino actual,
         linkaddr_t addr_destino;
         char *filename = "msg_file";
@@ -517,37 +519,48 @@ PROCESS_THREAD(generate_pkt, ev, data)
               // Se deserializa, la idea es que aca se creen cosas nuevas, claramente no volver a crear todo
               printf("PASO2: Deserializar lo del archivo\n" );
               deserialize(me_node,buf_read,list_backtrace);
-              // Una vez se deserializa toca definir quien debe
-              list_backtrace=NULL;
-              list_visited=NULL;
-              int who_forward=search_forwarder(me_node,list_backtrace,list_visited, node_receiver);
-              printf("el que debe de tramsnimir es %d\n", who_forward);
-              //aca se llena con el que tenga que retransmitir
-              fill_unicast_msg(&u_msg,linkaddr_node_addr,buf,node_receiver);
-              packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
+              // // Una vez se deserializa toca definir quien debe
+              if(me_node->child !=NULL){
+                list_backtrace=NULL;
+                list_visited=NULL;
+                int who_forward=search_forwarder(me_node,list_backtrace,list_visited, node_receiver);
+                printf("el que debe de tramsnimir es %d\n", who_forward);
+                //aca se llena con el que tenga que retransmitir
+                fill_unicast_msg(&u_msg,linkaddr_node_addr,buf,node_receiver);
+                packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
 
 
-              if(who_forward==0){
+                if(who_forward==0){
+                  printf("Enviando UPSTREAM \n");
+                  packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+                  unicast_send(&uc, &n.preferred_parent);
+                }
+                else if(who_forward==linkaddr_node_addr.u8[0]){
+                  printf("Yo soy el que ya le va enviar finalmente\n" );
+                  addr_destino.u8[0] = node_receiver;
+                  addr_destino.u8[1] = 0;
+                  printf("Enviando DOWNSTREAM \n");
+                  packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+                  unicast_send(&uc, &addr_destino);
+                }
+                else{
+                  addr_destino.u8[0] = who_forward;
+                  addr_destino.u8[1] = 0;
+                  printf("Enviando DOWNSTREAM \n");
+                  packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+                  unicast_send(&uc, &addr_destino);
+
+                }
+              }
+              else{
+                printf("NO TENGO A NADIE \n");
+                fill_unicast_msg(&u_msg,linkaddr_node_addr,buf,node_receiver);
+                packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
                 printf("Enviando UPSTREAM \n");
                 packetbuf_set_attr(TIPO_UNICAST, T_DATA);
                 unicast_send(&uc, &n.preferred_parent);
               }
-              else if(who_forward==linkaddr_node_addr.u8[0]){
-                printf("Yo soy el que ya le va enviar finalmente\n" );
-                addr_destino.u8[0] = node_receiver;
-                addr_destino.u8[1] = 0;
-                printf("Enviando DOWNSTREAM \n");
-                packetbuf_set_attr(TIPO_UNICAST, T_DATA);
-                unicast_send(&uc, &addr_destino);
-              }
-              else{
-                addr_destino.u8[0] = who_forward;
-                addr_destino.u8[1] = 0;
-                printf("Enviando DOWNSTREAM \n");
-                packetbuf_set_attr(TIPO_UNICAST, T_DATA);
-                unicast_send(&uc, &addr_destino);
 
-              }
 
 
             }
@@ -587,7 +600,7 @@ PROCESS_THREAD(routing_up_down,ev,data)
         int nodo_destino=msg_recv->id_dest;
 
         linkaddr_t addr_destino;
-
+        printf("#A color=orange\n");
         //Validar si ya soy el nodo de desitino
         if(linkaddr_node_addr.u8[0]==nodo_destino){
           printf("YO SOY EL NODO DE DESTINO %s\n",mensaje_unicast );
@@ -621,36 +634,43 @@ PROCESS_THREAD(routing_up_down,ev,data)
               printf("PASO2: Deserializar lo del archivo\n" );
               deserialize(me_node,buf_read,list_backtrace);
               // Una vez se deserializa toca definir quien debe
-              list_backtrace=NULL;
-              list_visited=NULL;
-              int who_forward=search_forwarder(me_node,list_backtrace,list_visited, nodo_destino);
-              printf("el que debe de tramsnimir es %d\n", who_forward);
-              //aca se llena con el que tenga que retransmitir
-              fill_unicast_msg(&u_msg,linkaddr_node_addr,mensaje_unicast,nodo_destino);
-              packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
+              if(me_node->child !=NULL){
+                list_backtrace=NULL;
+                list_visited=NULL;
+                int who_forward=search_forwarder(me_node,list_backtrace,list_visited, nodo_destino);
+                printf("el que debe de tramsnimir es %d\n", who_forward);
+                //aca se llena con el que tenga que retransmitir
+                fill_unicast_msg(&u_msg,linkaddr_node_addr,mensaje_unicast,nodo_destino);
+                packetbuf_copyfrom(&u_msg, sizeof(struct unicast_message));
 
 
-              if(who_forward==0){
-                  printf("Enviando UPSTREAM \n");
-                  packetbuf_set_attr(TIPO_UNICAST, T_DATA);
-                  unicast_send(&uc, &n.preferred_parent);
+                if(who_forward==0){
+                    printf("Enviando UPSTREAM \n");
+                    packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+                    unicast_send(&uc, &n.preferred_parent);
+                }
+                else if(who_forward==linkaddr_node_addr.u8[0]){
+                    printf("Yo soy el que ya le va enviar finalmente\n" );
+                    addr_destino.u8[0] = nodo_destino;
+                    addr_destino.u8[1] = 0;
+                    printf("Enviando DOWNSTREAM \n");
+                    packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+                    unicast_send(&uc, &addr_destino);
+                  }
+                else{
+                    addr_destino.u8[0] = who_forward;
+                    addr_destino.u8[1] = 0;
+                    printf("Enviando DOWNSTREAM \n");
+                    packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+                    unicast_send(&uc, &addr_destino);
+
+                  }
+
               }
-              else if(who_forward==linkaddr_node_addr.u8[0]){
-                  printf("Yo soy el que ya le va enviar finalmente\n" );
-                  addr_destino.u8[0] = nodo_destino;
-                  addr_destino.u8[1] = 0;
-                  printf("Enviando DOWNSTREAM \n");
-                  packetbuf_set_attr(TIPO_UNICAST, T_DATA);
-                  unicast_send(&uc, &addr_destino);
-                }
               else{
-                  addr_destino.u8[0] = who_forward;
-                  addr_destino.u8[1] = 0;
-                  printf("Enviando DOWNSTREAM \n");
-                  packetbuf_set_attr(TIPO_UNICAST, T_DATA);
-                  unicast_send(&uc, &addr_destino);
-
-                }
+                packetbuf_set_attr(TIPO_UNICAST, T_DATA);
+                unicast_send(&uc, &n.preferred_parent);
+              }
 
 
             }
